@@ -109,16 +109,13 @@ function App() {
   }, [selectedStationGroups, trips, tripStops])
 
   const handleStationGroupAdd = (group) => {
-    setSelectedStationGroups(prev => {
-      if (!prev.find(g => g.groupName === group.groupName)) {
-        return [...prev, group]
-      }
-      return prev
-    })
+    if (!selectedStationGroups.find(g => g.groupName === group.groupName)) {
+      setSelectedStationGroups([...selectedStationGroups, group])
+    }
   }
 
   const handleStationGroupRemove = (groupName) => {
-    setSelectedStationGroups(prev => prev.filter(g => g.groupName !== groupName))
+    setSelectedStationGroups(selectedStationGroups.filter(g => g.groupName !== groupName))
   }
 
   if (loading) {
