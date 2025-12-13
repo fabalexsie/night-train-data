@@ -48,12 +48,27 @@ function App() {
 
   // Filter trips based on selected stations
   useEffect(() => {
+    console.log('[Filter Effect] Triggered', {
+      selectedStations: selectedStations.length,
+      trips: Object.keys(trips).length,
+      tripStops: Object.keys(tripStops).length
+    })
+
     if (selectedStations.length === 0) {
+      console.log('[Filter Effect] No stations selected')
       setFilteredTrips([])
       return
     }
 
+    // Ensure data is loaded before filtering
+    if (Object.keys(trips).length === 0 || Object.keys(tripStops).length === 0) {
+      console.log('[Filter Effect] Data not yet loaded')
+      return
+    }
+
     const selectedStationIds = new Set(selectedStations.map(s => s.stop_id))
+    console.log('[Filter Effect] Selected station IDs:', Array.from(selectedStationIds))
+    
     const matchingTrips = []
 
     // For each trip, check if any of its stops match the selected stations
@@ -78,12 +93,17 @@ function App() {
       }
     })
 
+    console.log('[Filter Effect] Matching trips found:', matchingTrips.length)
     setFilteredTrips(matchingTrips)
   }, [selectedStations, trips, tripStops])
 
   const handleStationAdd = (station) => {
+    console.log('[Station Add]', station.stop_name, station.stop_id)
     if (!selectedStations.find(s => s.stop_id === station.stop_id)) {
       setSelectedStations([...selectedStations, station])
+      console.log('[Station Add] Updated selected stations:', selectedStations.length + 1)
+    } else {
+      console.log('[Station Add] Station already selected')
     }
   }
 
