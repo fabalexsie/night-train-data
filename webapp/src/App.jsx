@@ -16,7 +16,6 @@ function App() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('[Data Loading] Starting...')
         setLoading(true)
         const [stopsRes, tripsRes, tripStopsRes] = await Promise.all([
           fetch('/data/stops.json'),
@@ -34,7 +33,7 @@ function App() {
           tripStopsRes.json()
         ])
 
-        console.log('[Data Loading] Loaded:', {
+        console.log('Data loaded:', {
           stops: Object.keys(stopsData).length,
           trips: Object.keys(tripsData).length,
           tripStops: Object.keys(tripStopsData).length
@@ -44,9 +43,8 @@ function App() {
         setTrips(tripsData)
         setTripStops(tripStopsData)
         setLoading(false)
-        console.log('[Data Loading] Complete')
       } catch (err) {
-        console.error('[Data Loading] Error:', err)
+        console.error('Error loading data:', err)
         setError(err.message)
         setLoading(false)
       }
@@ -57,27 +55,18 @@ function App() {
 
   // Filter trips based on selected stations
   useEffect(() => {
-    console.log('[Filter Effect] Triggered', {
-      selectedStations: selectedStations.length,
-      trips: Object.keys(trips).length,
-      tripStops: Object.keys(tripStops).length
-    })
-
     if (selectedStations.length === 0) {
-      console.log('[Filter Effect] No stations selected')
       setFilteredTrips([])
       return
     }
 
     // Ensure data is loaded before filtering
     if (Object.keys(trips).length === 0 || Object.keys(tripStops).length === 0) {
-      console.log('[Filter Effect] Data not yet loaded')
+      console.log('Waiting for data to load...')
       return
     }
 
     const selectedStationIds = new Set(selectedStations.map(s => s.stop_id))
-    console.log('[Filter Effect] Selected station IDs:', Array.from(selectedStationIds))
-    
     const matchingTrips = []
 
     // For each trip, check if any of its stops match the selected stations
@@ -102,25 +91,20 @@ function App() {
       }
     })
 
-    console.log('[Filter Effect] Matching trips found:', matchingTrips.length)
+    console.log(`Found ${matchingTrips.length} trips for ${selectedStations.length} station(s)`)
     setFilteredTrips(matchingTrips)
   }, [selectedStations, trips, tripStops])
 
   const handleStationAdd = (station) => {
-    console.log('[Station Add]', station.stop_name, station.stop_id)
     setSelectedStations(prev => {
       if (!prev.find(s => s.stop_id === station.stop_id)) {
-        console.log('[Station Add] Adding station, current count:', prev.length)
         return [...prev, station]
-      } else {
-        console.log('[Station Add] Station already selected')
-        return prev
       }
+      return prev
     })
   }
 
   const handleStationRemove = (stationId) => {
-    console.log('[Station Remove]', stationId)
     setSelectedStations(prev => prev.filter(s => s.stop_id !== stationId))
   }
 

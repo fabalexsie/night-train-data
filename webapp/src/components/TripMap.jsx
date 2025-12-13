@@ -46,14 +46,6 @@ function MapBoundsUpdater({ filteredTrips, stops }) {
 function TripMap({ stops, filteredTrips }) {
   const mapRef = useRef(null)
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[TripMap] Props updated:', {
-      stops: Object.keys(stops).length,
-      filteredTrips: filteredTrips.length
-    })
-  }, [stops, filteredTrips])
-
   // Generate random colors for different trips
   const getColorForTrip = (index) => {
     const colors = [
