@@ -17,6 +17,25 @@ function StationAutocomplete({ stops, selectedStations, onStationAdd, onStationR
         stop.stop_name.toLowerCase().includes(lowerSearch) ||
         (stop.stop_country && stop.stop_country.toLowerCase().includes(lowerSearch))
       )
+      .sort((a, b) => {
+        const aName = a.stop_name.toLowerCase()
+        const bName = b.stop_name.toLowerCase()
+        
+        // Prioritize exact matches
+        const aExact = aName === lowerSearch
+        const bExact = bName === lowerSearch
+        if (aExact && !bExact) return -1
+        if (!aExact && bExact) return 1
+        
+        // Prioritize starts with
+        const aStarts = aName.startsWith(lowerSearch)
+        const bStarts = bName.startsWith(lowerSearch)
+        if (aStarts && !bStarts) return -1
+        if (!aStarts && bStarts) return 1
+        
+        // Otherwise sort alphabetically
+        return aName.localeCompare(bName)
+      })
       .slice(0, 20) // Limit to 20 suggestions
   }, [stops, searchTerm])
 
