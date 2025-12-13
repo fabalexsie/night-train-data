@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Station Selection</title>
+</head>
+<body>
+    <h1>Testing Station Selection Logic</h1>
+    <div id="output"></div>
+    
+    <script>
+        async function test() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Loading data...</p>';
+            
+            try {
+                // Load data
+                const [stopsRes, tripsRes, tripStopsRes] = await Promise.all([
+                    fetch('/data/stops.json'),
+                    fetch('/data/trips.json'),
+                    fetch('/data/trip_stop.json')
+                ]);
+                
+                const stops = await stopsRes.json();
+                const trips = await tripsRes.json();
+                const tripStops = await tripStopsRes.json();
+                
+                output.innerHTML = `
+                    <p>Data loaded:</p>
+                    <ul>
+                        <li>Stops: ${Object.keys(stops).length}</li>
+                        <li>Trips: ${Object.keys(trips).length}</li>
+                        <li>Trip Stops: ${Object.keys(tripStops).length}</li>
+                    </ul>
+                `;
+                
+                // Test station selection
+                const testStation = stops['Arad'];
+                if (!testStation) {
+                    output.innerHTML += '<p style="color:red">ERROR: Station "Arad" not found!</p>';
+                    return;
+                }
+                
+                output.innerHTML += `<p>Selected station: ${testStation.stop_name} (ID: ${testStation.stop_id})</p>`;
+                
+                // Filter trips
+                const selectedStations = [testStation];
+                const selectedStationIds = new Set(selectedStations.map(s => s.stop_id));
+                
+                const matchingTrips = [];
+                Object.values(trips).forEach(trip => {
+                    const tripId = trip.trip_id;
+                    const stopsForTrip = Object.values(tripStops).filter(
+                        ts => ts.trip_id === tripId
+                    );
+                    const hasMatchingStation = stopsForTrip.some(
+                        ts => selectedStationIds.has(ts.stop_id)
+                    );
+                    if (hasMatchingStation) {
+                        matchingTrips.push({ trip, stops: stopsForTrip });
+                    }
+                });
+                
+                output.innerHTML += `<p><strong>Matching trips: ${matchingTrips.length}</strong></p>`;
+                if (matchingTrips.length > 0) {
+                    output.innerHTML += '<ul>';
+                    matchingTrips.slice(0, 5).forEach(({ trip }) => {
+                        output.innerHTML += `<li>${trip.trip_short_name}: ${trip.trip_origin} → ${trip.trip_headsign}</li>`;
+                    });
+                    output.innerHTML += '</ul>';
+                } else {
+                    output.innerHTML += '<p style="color:red">⚠️ NO TRIPS FOUND - BUG!</p>';
+                }
+                
+            } catch (error) {
+                output.innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+                console.error(error);
+            }
+        }
+        
+        test();
+    </script>
+</body>
+</html>
