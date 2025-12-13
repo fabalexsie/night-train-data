@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { searchStationGroups } from '../utils/stationGrouping'
 import './StationAutocomplete.css'
 
@@ -6,8 +6,15 @@ function StationAutocomplete({ stationGroups, selectedGroups, onGroupAdd, onGrou
   const [searchTerm, setSearchTerm] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
 
-  // Filter station groups based on search term
+  // Get set of already selected group names
+  const selectedGroupNames = useMemo(
+    () => new Set(selectedGroups.map(g => g.groupName)),
+    [selectedGroups]
+  )
+
+  // Filter station groups based on search term and exclude already selected groups
   const filteredGroups = searchStationGroups(stationGroups, searchTerm, 20)
+    .filter(group => !selectedGroupNames.has(group.groupName))
 
   const handleInputChange = (e) => {
     setSearchTerm(e.target.value)
