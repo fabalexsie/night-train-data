@@ -48,6 +48,85 @@ function getMostCommonCountry(stations) {
 }
 
 /**
+ * Extract words from a station name, handling parentheses and hyphens
+ * @param {string} stationName - Full station name
+ * @returns {Array<string>} Array of words
+ */
+function extractWords(stationName) {
+  // Keep parentheses content together as a single word
+  const words = [];
+  let current = '';
+  let inParens = false;
+  
+  for (let i = 0; i < stationName.length; i++) {
+    const char = stationName[i];
+    
+    if (char === '(') {
+      if (current.trim()) {
+        words.push(current.trim());
+        current = '';
+      }
+      inParens = true;
+      current = char;
+    } else if (char === ')') {
+      current += char;
+      inParens = false;
+      words.push(current.trim());
+      current = '';
+    } else if (!inParens && (char === ' ' || char === '-')) {
+      if (current.trim()) {
+        words.push(current.trim());
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+  
+  if (current.trim()) {
+    words.push(current.trim());
+  }
+  
+  return words;
+}
+
+/**
+ * Find the longest common prefix (in words) among a list of station names
+ * @param {Array<string>} stationNames - List of station names
+ * @returns {string} Longest common prefix
+ */
+function findLongestCommonPrefix(stationNames) {
+  if (stationNames.length === 0) return '';
+  if (stationNames.length === 1) return stationNames[0];
+  
+  // Extract words from all station names
+  const allWords = stationNames.map(name => extractWords(name));
+  
+  // Find longest common word prefix
+  const firstWords = allWords[0];
+  let commonPrefixLength = 0;
+  
+  for (let i = 0; i < firstWords.length; i++) {
+    const word = firstWords[i];
+    const allMatch = allWords.every(words => words[i] === word);
+    
+    if (allMatch) {
+      commonPrefixLength = i + 1;
+    } else {
+      break;
+    }
+  }
+  
+  // Return the common prefix (at least 1 word, but try to get as many as possible)
+  if (commonPrefixLength > 0) {
+    return firstWords.slice(0, commonPrefixLength).join(' ');
+  }
+  
+  // Fallback: return first word
+  return firstWords[0] || stationNames[0];
+}
+
+/**
  * Extract the base name from a station name
  * E.g., "Frankfurt (Main) Hbf" -> "Frankfurt (Main)"
  *       "Berlin Hauptbahnhof" -> "Berlin"
@@ -82,6 +161,25 @@ function extractBaseName(stationName) {
 }
 
 /**
+ * Get first word(s) from a station name for initial grouping
+ * Handles parentheses to keep them together with the first word
+ * @param {string} stationName - Full station name
+ * @returns {string} First word(s)
+ */
+function getFirstWords(stationName) {
+  const words = extractWords(stationName);
+  
+  // If we have parentheses in the first few words, include them
+  // e.g., "Frankfurt (Main) Hbf" -> "Frankfurt (Main)"
+  if (words.length >= 2 && words[1].startsWith('(') && words[1].endsWith(')')) {
+    return `${words[0]} ${words[1]}`;
+  }
+  
+  // Otherwise just return the first word
+  return words[0] || stationName;
+}
+
+/**
  * Group stations by their base name and proximity
  * @param {Object} stops - Object mapping stop_id to stop data
  * @param {number} maxDistance - Maximum distance in km to consider stations as a group (default: 50)
@@ -93,11 +191,11 @@ export function groupStations(stops, maxDistance = 50) {
     'Bad', 'St.', 'St', 'La', 'Le', 'Les', 'Il', 'El', 'De', 'Den', 'Het'
   ]);
   
-  // First pass: group by base name
-  const baseNameGroups = {};
+  // First pass: group by first word(s) to find potential groups
+  const firstWordGroups = {};
   
   Object.entries(stops).forEach(([stopId, stop]) => {
-    const baseName = extractBaseName(stop.stop_name);
+    const firstWords = getFirstWords(stop.stop_name);
     const lat = parseFloat(stop.stop_lat);
     const lon = parseFloat(stop.stop_lon);
     
@@ -106,16 +204,39 @@ export function groupStations(stops, maxDistance = 50) {
       return;
     }
     
-    if (!baseNameGroups[baseName]) {
-      baseNameGroups[baseName] = [];
+    if (!firstWordGroups[firstWords]) {
+      firstWordGroups[firstWords] = [];
     }
     
-    baseNameGroups[baseName].push({
+    firstWordGroups[firstWords].push({
       ...stop,
       stop_id: stopId,
       lat,
       lon
     });
+  });
+  
+  // Second pass: for groups with multiple stations, find longest common prefix
+  const baseNameGroups = {};
+  
+  Object.entries(firstWordGroups).forEach(([, stations]) => {
+    if (stations.length === 1) {
+      // Single station - use original name
+      const baseName = extractBaseName(stations[0].stop_name);
+      if (!baseNameGroups[baseName]) {
+        baseNameGroups[baseName] = [];
+      }
+      baseNameGroups[baseName].push(stations[0]);
+    } else {
+      // Multiple stations - find longest common prefix
+      const stationNames = stations.map(s => s.stop_name);
+      const commonPrefix = findLongestCommonPrefix(stationNames);
+      
+      if (!baseNameGroups[commonPrefix]) {
+        baseNameGroups[commonPrefix] = [];
+      }
+      baseNameGroups[commonPrefix].push(...stations);
+    }
   });
   
   // Second pass: create groups and individual stations
@@ -271,6 +392,10 @@ export function searchStationGroups(groups, searchTerm, limit = 20) {
       const bStartsDisplay = bDisplay.startsWith(lowerSearch);
       if (aStartsDisplay && !bStartsDisplay) return -1;
       if (!aStartsDisplay && bStartsDisplay) return 1;
+      
+      // NEW: Prioritize grouped stations (isGroup=true) over individual stations
+      if (a.isGroup && !b.isGroup) return -1;
+      if (!a.isGroup && b.isGroup) return 1;
       
       // Otherwise sort alphabetically by display name
       return aDisplay.localeCompare(bDisplay);
