@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import StationAutocomplete from './components/StationAutocomplete'
 import TripMap from './components/TripMap'
+import { groupStations } from './utils/stationGrouping'
 import './App.css'
 
 function App() {
   const [stops, setStops] = useState({})
   const [trips, setTrips] = useState({})
   const [tripStops, setTripStops] = useState({})
-  const [selectedStations, setSelectedStations] = useState([])
+  const [selectedStationGroups, setSelectedStationGroups] = useState([])
   const [filteredTrips, setFilteredTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // Group stations for easier selection
+  const stationGroups = useMemo(() => {
+    return groupStations(stops)
+  }, [stops])
 
   // Load data from JSON files
   useEffect(() => {
@@ -46,14 +52,21 @@ function App() {
     loadData()
   }, [])
 
-  // Filter trips based on selected stations
+  // Filter trips based on selected station groups
   useEffect(() => {
-    if (selectedStations.length === 0) {
+    if (selectedStationGroups.length === 0) {
       setFilteredTrips([])
       return
     }
 
-    const selectedStationIds = new Set(selectedStations.map(s => s.stop_id))
+    // Collect all station IDs from selected groups
+    const selectedStationIds = new Set()
+    selectedStationGroups.forEach(group => {
+      group.stations.forEach(station => {
+        selectedStationIds.add(station.stop_id)
+      })
+    })
+    
     const matchingTrips = []
 
     // For each trip, check if any of its stops match the selected stations
@@ -79,16 +92,16 @@ function App() {
     })
 
     setFilteredTrips(matchingTrips)
-  }, [selectedStations, trips, tripStops])
+  }, [selectedStationGroups, trips, tripStops])
 
-  const handleStationAdd = (station) => {
-    if (!selectedStations.find(s => s.stop_id === station.stop_id)) {
-      setSelectedStations([...selectedStations, station])
+  const handleStationGroupAdd = (group) => {
+    if (!selectedStationGroups.find(g => g.groupName === group.groupName)) {
+      setSelectedStationGroups([...selectedStationGroups, group])
     }
   }
 
-  const handleStationRemove = (stationId) => {
-    setSelectedStations(selectedStations.filter(s => s.stop_id !== stationId))
+  const handleStationGroupRemove = (groupName) => {
+    setSelectedStationGroups(selectedStationGroups.filter(g => g.groupName !== groupName))
   }
 
   if (loading) {
@@ -109,10 +122,10 @@ function App() {
       <div className="app-content">
         <aside className="sidebar">
           <StationAutocomplete 
-            stops={stops}
-            selectedStations={selectedStations}
-            onStationAdd={handleStationAdd}
-            onStationRemove={handleStationRemove}
+            stationGroups={stationGroups}
+            selectedGroups={selectedStationGroups}
+            onGroupAdd={handleStationGroupAdd}
+            onGroupRemove={handleStationGroupRemove}
           />
           
           <div className="trip-info">
