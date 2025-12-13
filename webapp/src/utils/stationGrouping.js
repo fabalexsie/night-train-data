@@ -103,8 +103,10 @@ function longestCommonPrefix(strings) {
     return '';
   }
   
+  // For single string, return it as-is since it's the only option
+  // The caller should decide how to use it
   if (strings.length === 1) {
-    return strings[0];
+    return strings[0].trim();
   }
   
   // Sort strings to compare first and last (lexicographically)
@@ -294,11 +296,12 @@ export function groupStations(stops, maxDistance = 50) {
       }
     }
     
-    if (canGroup && maxDist <= firstWordMaxDistance) {
+    if (canGroup) {
       // Create a new group with longest common prefix as the group name
       const stationNames = items.map(item => item.group.displayName);
       const commonPrefix = longestCommonPrefix(stationNames);
-      const groupName = commonPrefix || firstWord;
+      // Use common prefix if it's meaningful (not empty after trim), otherwise use first word
+      const groupName = (commonPrefix && commonPrefix.length > 0) ? commonPrefix : firstWord;
       
       const allStations = items.flatMap(item => item.group.stations);
       const avgLat = allStations.reduce((sum, s) => sum + s.lat, 0) / allStations.length;
