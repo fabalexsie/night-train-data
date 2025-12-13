@@ -148,16 +148,13 @@ function App() {
             
             {filteredTrips.length > 0 && (
               <div className="trip-list">
-                {filteredTrips.slice(0, 10).map(({ trip }) => (
+                {filteredTrips.map(({ trip }) => (
                   <div key={trip.trip_id} className="trip-item">
                     <strong>{trip.trip_short_name}</strong>
                     <br />
                     {trip.trip_origin} → {trip.trip_headsign}
                   </div>
                 ))}
-                {filteredTrips.length > 10 && (
-                  <p className="more-trips">... and {filteredTrips.length - 10} more</p>
-                )}
               </div>
             )}
           </div>
