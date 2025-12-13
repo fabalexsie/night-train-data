@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import StationAutocomplete from './components/StationAutocomplete'
 import TripMap from './components/TripMap'
 import { groupStations } from './utils/stationGrouping'
+import { saveSelectedStationGroups, loadSelectedStationGroups } from './utils/localStorage'
 import './App.css'
 
 function App() {
@@ -12,11 +13,27 @@ function App() {
   const [filteredTrips, setFilteredTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const isRestoredRef = useRef(false)
 
   // Group stations for easier selection
   const stationGroups = useMemo(() => {
     return groupStations(stops)
   }, [stops])
+
+  // Restore selected station groups from localStorage when data is loaded
+  useEffect(() => {
+    if (Object.keys(stops).length === 0) {
+      return; // Wait for data to load
+    }
+
+    const savedGroups = loadSelectedStationGroups();
+    if (savedGroups.length > 0) {
+      console.log('Restoring', savedGroups.length, 'station groups from localStorage');
+      setSelectedStationGroups(savedGroups);
+    }
+    // Mark as restored regardless of whether there were saved groups
+    isRestoredRef.current = true;
+  }, [stops]); // Run once when stops are loaded
 
   // Load data from JSON files
   useEffect(() => {
@@ -107,6 +124,14 @@ function App() {
     console.log(`Found ${matchingTrips.length} trips for ${selectedStationGroups.length} station group(s)`)
     setFilteredTrips(matchingTrips)
   }, [selectedStationGroups, trips, tripStops])
+
+  // Save selected station groups to localStorage whenever they change
+  // Only save after initial restoration to avoid overwriting saved data
+  useEffect(() => {
+    if (isRestoredRef.current) {
+      saveSelectedStationGroups(selectedStationGroups);
+    }
+  }, [selectedStationGroups]);
 
   const handleStationGroupAdd = (group) => {
     if (!selectedStationGroups.find(g => g.groupName === group.groupName)) {
