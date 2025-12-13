@@ -108,9 +108,9 @@ function findLongestCommonPrefix(stationNames) {
   
   for (let i = 0; i < firstWords.length; i++) {
     const word = firstWords[i];
-    const allMatch = allWords.every(words => words.length > i && words[i] === word);
+    const currentWordMatches = allWords.every(words => words.length > i && words[i] === word);
     
-    if (allMatch) {
+    if (currentWordMatches) {
       commonPrefixLength = i + 1;
     } else {
       break;
@@ -169,8 +169,9 @@ function extractBaseName(stationName) {
 function getFirstWords(stationName) {
   const words = extractWords(stationName);
   
-  // If we have parentheses in the first few words, include them
-  // e.g., "Frankfurt (Main) Hbf" -> "Frankfurt (Main)"
+  // If the second word is a parenthetical expression, include it with the first word
+  // e.g., "Frankfurt (Main) Hbf" -> extractWords -> ["Frankfurt", "(Main)", "Hbf"]
+  // -> return "Frankfurt (Main)"
   if (words.length >= 2 && words[1].startsWith('(') && words[1].endsWith(')')) {
     return `${words[0]} ${words[1]}`;
   }
