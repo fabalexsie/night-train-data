@@ -1,6 +1,7 @@
 services:
   night-train-map:
     build:
+      # Build context set to repository root to access data/latest/ directory
       context: .
       dockerfile: ./webapp/Dockerfile
     container_name: night-train-map

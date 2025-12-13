@@ -84,6 +84,12 @@ The application uses three data files:
 
 These files are accessed via a symlink from `public/data/` to the repository's `data/latest/` directory. The webapp always uses the latest data without requiring any manual updates.
 
+**Note:** If you need to recreate the symlink (e.g., after cloning the repository), run:
+```bash
+cd webapp/public
+ln -s ../../data/latest data
+```
+
 ## Technology Stack
 
 - **React** - UI framework

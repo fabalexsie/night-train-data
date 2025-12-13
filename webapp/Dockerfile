@@ -13,6 +13,8 @@ RUN npm config set strict-ssl false && npm ci
 COPY webapp/ ./
 
 # Remove the symlink and copy actual data files
+# Docker cannot follow symlinks outside build context, so we replace the symlink
+# with actual files from data/latest during the build
 RUN rm -f public/data
 COPY data/latest/ ./public/data/
 
