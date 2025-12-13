@@ -39,11 +39,18 @@ function App() {
           tripStopsRes.json()
         ])
 
+        console.log('Data loaded:', {
+          stops: Object.keys(stopsData).length,
+          trips: Object.keys(tripsData).length,
+          tripStops: Object.keys(tripStopsData).length
+        })
+
         setStops(stopsData)
         setTrips(tripsData)
         setTripStops(tripStopsData)
         setLoading(false)
       } catch (err) {
+        console.error('Error loading data:', err)
         setError(err.message)
         setLoading(false)
       }
@@ -56,6 +63,12 @@ function App() {
   useEffect(() => {
     if (selectedStationGroups.length === 0) {
       setFilteredTrips([])
+      return
+    }
+
+    // Ensure data is loaded before filtering
+    if (Object.keys(trips).length === 0 || Object.keys(tripStops).length === 0) {
+      console.log('Waiting for data to load...')
       return
     }
 
@@ -91,6 +104,7 @@ function App() {
       }
     })
 
+    console.log(`Found ${matchingTrips.length} trips for ${selectedStationGroups.length} station group(s)`)
     setFilteredTrips(matchingTrips)
   }, [selectedStationGroups, trips, tripStops])
 
