@@ -26,6 +26,28 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Get the most common country from a list of stations
+ * @param {Array} stations - Array of station objects with stop_country property
+ * @returns {string} Most common country code, or empty string if none found
+ */
+function getMostCommonCountry(stations) {
+  const countryFreq = {};
+  stations.forEach(s => {
+    if (s.stop_country) {
+      countryFreq[s.stop_country] = (countryFreq[s.stop_country] || 0) + 1;
+    }
+  });
+  
+  if (Object.keys(countryFreq).length === 0) {
+    return '';
+  }
+  
+  return Object.keys(countryFreq).reduce((a, b) => 
+    countryFreq[a] > countryFreq[b] ? a : b
+  );
+}
+
+/**
  * Extract the base name from a station name
  * E.g., "Frankfurt (Main) Hbf" -> "Frankfurt (Main)"
  *       "Berlin Hauptbahnhof" -> "Berlin"
@@ -35,25 +57,24 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 function extractBaseName(stationName) {
   // Keep text in parentheses as part of base name
   if (stationName.includes('(') && stationName.includes(')')) {
-    const closeParen = stationName.indexOf(')');
+    const closeParen = stationName.lastIndexOf(')');
     return stationName.substring(0, closeParen + 1).trim();
   }
   
-  // Common station suffixes to remove
+  // Common station suffixes to remove (check from end of string)
   const suffixes = [
-    'Hbf', 'Hauptbahnhof', 'HB', 'Bf', 'Station', 'Gare',
+    'Hauptbahnhof', 'Hbf', 'HB', 'Bf', 'Station', 'Gare',
     'Centrale', 'Central', 'Airport', 'Flughafen', 
     'Sud', 'Süd', 'Nord', 'Ost', 'West', 'Est',
     'Ostbahnhof', 'Westbahnhof', 'Südbahnhof', 'Nordbahnhof',
     'Ostkreuz', 'Westkreuz'
   ];
   
-  // Try to match suffixes (with space before them)
+  // Try to match suffixes at the end of the string
   for (const suffix of suffixes) {
     const pattern = ' ' + suffix;
-    const index = stationName.indexOf(pattern);
-    if (index !== -1) {
-      return stationName.substring(0, index).trim();
+    if (stationName.endsWith(pattern) || stationName.endsWith(pattern + ' ')) {
+      return stationName.substring(0, stationName.lastIndexOf(pattern)).trim();
     }
   }
   
@@ -67,6 +88,11 @@ function extractBaseName(stationName) {
  * @returns {Array} Array of station groups, each with groupName, displayName, stations, and coordinates
  */
 export function groupStations(stops, maxDistance = 50) {
+  // Generic base names that shouldn't be grouped (too common)
+  const genericBaseNames = new Set([
+    'Bad', 'St.', 'St', 'La', 'Le', 'Les', 'Il', 'El', 'De', 'Den', 'Het'
+  ]);
+  
   // First pass: group by base name
   const baseNameGroups = {};
   
@@ -96,6 +122,22 @@ export function groupStations(stops, maxDistance = 50) {
   const groups = [];
   
   Object.entries(baseNameGroups).forEach(([baseName, stations]) => {
+    // Don't group stations with generic base names
+    if (genericBaseNames.has(baseName)) {
+      stations.forEach(station => {
+        groups.push({
+          groupName: baseName,
+          displayName: station.stop_name,
+          isGroup: false,
+          stations: [station],
+          lat: station.lat,
+          lon: station.lon,
+          stop_country: station.stop_country
+        });
+      });
+      return;
+    }
+    
     if (stations.length === 1) {
       // Single station - add as individual entry
       const station = stations[0];
@@ -135,17 +177,6 @@ export function groupStations(stops, maxDistance = 50) {
         const avgLat = stations.reduce((sum, s) => sum + s.lat, 0) / stations.length;
         const avgLon = stations.reduce((sum, s) => sum + s.lon, 0) / stations.length;
         
-        // Get the most common country from the stations
-        const countryFreq = {};
-        stations.forEach(s => {
-          if (s.stop_country) {
-            countryFreq[s.stop_country] = (countryFreq[s.stop_country] || 0) + 1;
-          }
-        });
-        const country = Object.keys(countryFreq).length > 0
-          ? Object.keys(countryFreq).reduce((a, b) => countryFreq[a] > countryFreq[b] ? a : b)
-          : '';
-        
         groups.push({
           groupName: baseName,
           displayName: `${baseName} (${stations.length} stations)`,
@@ -153,7 +184,7 @@ export function groupStations(stops, maxDistance = 50) {
           stations: stations.sort((a, b) => a.stop_name.localeCompare(b.stop_name)),
           lat: avgLat,
           lon: avgLon,
-          stop_country: country
+          stop_country: getMostCommonCountry(stations)
         });
       } else {
         // Stations are too far apart - add individually
