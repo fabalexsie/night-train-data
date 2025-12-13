@@ -4,13 +4,17 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY webapp/package*.json ./
 
 # Install all dependencies (including devDependencies needed for build)
 RUN npm config set strict-ssl false && npm ci
 
-# Copy source files
-COPY . .
+# Copy webapp source files
+COPY webapp/ ./
+
+# Remove the symlink and copy actual data files
+RUN rm -f public/data
+COPY data/latest/ ./public/data/
 
 # Build the application
 RUN npm run build
@@ -22,7 +26,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY webapp/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80

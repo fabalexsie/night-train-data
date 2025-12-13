@@ -1,8 +1,8 @@
 services:
   night-train-map:
     build:
-      context: ./webapp
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./webapp/Dockerfile
     container_name: night-train-map
     ports:
       - "80:80"

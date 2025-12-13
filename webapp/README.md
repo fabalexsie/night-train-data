@@ -77,16 +77,12 @@ docker run -d -p 80:80 --name night-train-map night-train-map
 
 ## Data Files
 
-The application uses three data files located in `public/data/`:
+The application uses three data files:
 - `stops.json` - Station information with coordinates
 - `trips.json` - Trip information
 - `trip_stop.json` - Mapping of trips to stations
 
-These files are copied from the `data/latest/` directory. To update them when new data is available, run:
-
-```bash
-./update-data.sh
-```
+These files are accessed via a symlink from `public/data/` to the repository's `data/latest/` directory. The webapp always uses the latest data without requiring any manual updates.
 
 ## Technology Stack
 
