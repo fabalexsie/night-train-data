@@ -1,0 +1,48 @@
+.trip-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  text-align: center;
+  pointer-events: none;
+}
+
+.map-overlay p {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.stop-popup {
+  font-size: 0.9rem;
+}
+
+.stop-popup strong {
+  color: #333;
+  font-size: 1rem;
+}
+
+.stop-popup div {
+  margin-top: 0.25rem;
+  color: #666;
+}
+
+/* Ensure Leaflet controls are visible */
+.leaflet-container {
+  background: #e8f4f8;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}

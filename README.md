@@ -8,6 +8,28 @@ A Google Apps script has been developed to extract the Google Sheets data, which
 
 A hosted version of the script is [here](https://script.google.com/macros/s/AKfycbwY9zNQFq0urCHsTstWRKxLe0SstWrwyY04tSuDIVb_yRCtTs_HDlRARS-5fqltgEZr/exec) and can be used for one-off .json file creation.
 
+## Night Train Map Web Application
+
+This repository includes a React-based web application for filtering and visualizing night train trips on an interactive map.
+
+### Features
+- Search and select stations using autocomplete
+- Filter trips by stations (shows complete trip if at least one station matches)
+- Interactive map displaying filtered trips with routes and markers
+- Responsive design for desktop and mobile
+
+### Quick Start with Docker
+
+To run the web application in production mode:
+
+```bash
+docker compose up -d
+```
+
+The application will be available at http://localhost:32516/
+
+For more details, see the [webapp README](./webapp/README.md).
+
 ## How to update the data held in this repository
 There are several options for updating the data
 1. For developers (mainly): If you are using git locally you can get update with this python script - [get_snapshot.py](./scripts/get_snapshot.py) which uses the currently hosted version of the script. Then create a pull request with the new files and they will get merged when approved, or if youv'e got the permissions and feeling brave, just commit.
