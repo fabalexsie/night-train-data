@@ -16,6 +16,7 @@ function App() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('[Data Loading] Starting...')
         setLoading(true)
         const [stopsRes, tripsRes, tripStopsRes] = await Promise.all([
           fetch('/data/stops.json'),
@@ -33,11 +34,19 @@ function App() {
           tripStopsRes.json()
         ])
 
+        console.log('[Data Loading] Loaded:', {
+          stops: Object.keys(stopsData).length,
+          trips: Object.keys(tripsData).length,
+          tripStops: Object.keys(tripStopsData).length
+        })
+
         setStops(stopsData)
         setTrips(tripsData)
         setTripStops(tripStopsData)
         setLoading(false)
+        console.log('[Data Loading] Complete')
       } catch (err) {
+        console.error('[Data Loading] Error:', err)
         setError(err.message)
         setLoading(false)
       }
@@ -99,16 +108,20 @@ function App() {
 
   const handleStationAdd = (station) => {
     console.log('[Station Add]', station.stop_name, station.stop_id)
-    if (!selectedStations.find(s => s.stop_id === station.stop_id)) {
-      setSelectedStations([...selectedStations, station])
-      console.log('[Station Add] Updated selected stations:', selectedStations.length + 1)
-    } else {
-      console.log('[Station Add] Station already selected')
-    }
+    setSelectedStations(prev => {
+      if (!prev.find(s => s.stop_id === station.stop_id)) {
+        console.log('[Station Add] Adding station, current count:', prev.length)
+        return [...prev, station]
+      } else {
+        console.log('[Station Add] Station already selected')
+        return prev
+      }
+    })
   }
 
   const handleStationRemove = (stationId) => {
-    setSelectedStations(selectedStations.filter(s => s.stop_id !== stationId))
+    console.log('[Station Remove]', stationId)
+    setSelectedStations(prev => prev.filter(s => s.stop_id !== stationId))
   }
 
   if (loading) {

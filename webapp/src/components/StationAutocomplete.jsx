@@ -26,6 +26,7 @@ function StationAutocomplete({ stops, selectedStations, onStationAdd, onStationR
   }
 
   const handleSelectStation = (station) => {
+    console.log('[StationAutocomplete] Station selected:', station.stop_name, station)
     onStationAdd(station)
     setSearchTerm('')
     setShowSuggestions(false)
