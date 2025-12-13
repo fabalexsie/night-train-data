@@ -49,8 +49,15 @@
   cursor: pointer;
   border-bottom: 1px solid #f0f0f0;
   display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.suggestion-item > div:first-child {
+  display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
 .suggestion-item:hover {
@@ -125,4 +132,11 @@
 
 .remove-btn:hover {
   background: rgba(255, 255, 255, 0.5);
+}
+
+.group-stations {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.25rem;
+  font-style: italic;
 }
