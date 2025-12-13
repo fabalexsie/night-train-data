@@ -31,6 +31,7 @@ function App() {
       console.log('Restoring', savedGroups.length, 'station groups from localStorage');
       setSelectedStationGroups(savedGroups);
     }
+    // Mark as restored regardless of whether there were saved groups
     isRestoredRef.current = true;
   }, [stops]); // Run once when stops are loaded
 
