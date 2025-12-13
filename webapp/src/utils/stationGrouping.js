@@ -108,7 +108,7 @@ function findLongestCommonPrefix(stationNames) {
   
   for (let i = 0; i < firstWords.length; i++) {
     const word = firstWords[i];
-    const allMatch = allWords.every(words => words[i] === word);
+    const allMatch = allWords.every(words => words.length > i && words[i] === word);
     
     if (allMatch) {
       commonPrefixLength = i + 1;
@@ -239,7 +239,7 @@ export function groupStations(stops, maxDistance = 50) {
     }
   });
   
-  // Second pass: create groups and individual stations
+  // Third pass: create groups and individual stations
   const groups = [];
   
   Object.entries(baseNameGroups).forEach(([baseName, stations]) => {
