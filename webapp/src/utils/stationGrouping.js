@@ -311,6 +311,12 @@ export function searchStationGroups(groups, searchTerm, limit = 20) {
       if (!aStartsDisplay && bStartsDisplay) return 1;
       
       // NEW: Prioritize grouped stations (isGroup=true) over individual stations
+      if (a.isGroup && b.isGroup) {
+        // Both are groups - sort by amount of stations (more stations first)
+        if (b.stations.length !== a.stations.length) {
+          return b.stations.length - a.stations.length;
+        }
+      }
       if (a.isGroup && !b.isGroup) return -1;
       if (!a.isGroup && b.isGroup) return 1;
       
