@@ -111,25 +111,40 @@ export function groupStations(stops, maxDistance = 50) {
     } else {
       // Multiple stations - check if they're close enough to group
       let maxDist = 0;
-      for (let i = 0; i < stations.length; i++) {
-        for (let j = i + 1; j < stations.length; j++) {
+      let tooFarApart = false;
+      
+      // Calculate maximum distance between any two stations
+      for (let i = 0; i < stations.length && !tooFarApart; i++) {
+        for (let j = i + 1; j < stations.length && !tooFarApart; j++) {
           const dist = haversineDistance(
             stations[i].lat, stations[i].lon,
             stations[j].lat, stations[j].lon
           );
           maxDist = Math.max(maxDist, dist);
+          
+          // Early exit if we find stations that are too far apart
+          if (maxDist > maxDistance) {
+            tooFarApart = true;
+          }
         }
       }
       
-      if (maxDist <= maxDistance) {
+      if (!tooFarApart && maxDist <= maxDistance) {
         // Stations are close enough - create a group
         // Calculate centroid
         const avgLat = stations.reduce((sum, s) => sum + s.lat, 0) / stations.length;
         const avgLon = stations.reduce((sum, s) => sum + s.lon, 0) / stations.length;
         
-        // Use the most common country
-        const countries = stations.map(s => s.stop_country).filter(c => c);
-        const country = countries.length > 0 ? countries[0] : '';
+        // Get the most common country from the stations
+        const countryFreq = {};
+        stations.forEach(s => {
+          if (s.stop_country) {
+            countryFreq[s.stop_country] = (countryFreq[s.stop_country] || 0) + 1;
+          }
+        });
+        const country = Object.keys(countryFreq).length > 0
+          ? Object.keys(countryFreq).reduce((a, b) => countryFreq[a] > countryFreq[b] ? a : b)
+          : '';
         
         groups.push({
           groupName: baseName,
