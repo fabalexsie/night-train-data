@@ -82,7 +82,11 @@ The application uses three data files located in `public/data/`:
 - `trips.json` - Trip information
 - `trip_stop.json` - Mapping of trips to stations
 
-These files are copied from the `data/latest/` directory during setup.
+These files are copied from the `data/latest/` directory. To update them when new data is available, run:
+
+```bash
+./update-data.sh
+```
 
 ## Technology Stack
 
