@@ -5,13 +5,19 @@ services:
       context: .
       dockerfile: ./webapp/Dockerfile
     container_name: night-train-map
-    ports:
-      - "32516:80"
     restart: unless-stopped
     environment:
       - NODE_ENV=production
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://0.0.0.0/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://0.0.0.0:32516/",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

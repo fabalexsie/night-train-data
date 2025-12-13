@@ -49,6 +49,7 @@ docker compose up -d
 ```
 
 This will:
+
 - Build the Docker image
 - Start the container
 - Expose the application on port 32516
@@ -69,15 +70,16 @@ From the webapp directory:
 docker build -t night-train-map .
 ```
 
-### Running the Docker Container Manually
+### Running the Docker Container Manually (available on host port 80)
 
 ```bash
-docker run -d -p 32516:80 --name night-train-map night-train-map
+docker run -d -p 80:32516 --name night-train-map night-train-map
 ```
 
 ## Data Files
 
 The application uses three data files:
+
 - `stops.json` - Station information with coordinates
 - `trips.json` - Trip information
 - `trip_stop.json` - Mapping of trips to stations
@@ -85,6 +87,7 @@ The application uses three data files:
 These files are accessed via a symlink from `public/data/` to the repository's `data/latest/` directory. The webapp always uses the latest data without requiring any manual updates.
 
 **Note:** If you need to recreate the symlink (e.g., after cloning the repository), run:
+
 ```bash
 cd webapp/public
 ln -s ../../data/latest data
