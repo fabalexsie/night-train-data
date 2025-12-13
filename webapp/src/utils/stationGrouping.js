@@ -95,22 +95,60 @@ export function groupStations(stops, maxDistance = 50) {
   
   // First pass: group by base name
   const baseNameGroups = {};
-  
+
+  const allBasenames = Object.values(stops).map((stop) =>
+    extractBaseName(stop.stop_name)
+  );
+
+  const findGroupablePrefix = (baseName) => {
+    const firstWord = baseName.split(" ")[0];
+    const basenamesMatchingWithFirstWord = allBasenames.filter((name) =>
+      name.startsWith(firstWord)
+    );
+    if (basenamesMatchingWithFirstWord.length > 1) {
+      // More than one station shares this first word, so it's groupable
+      // -> find longest common prefix
+      let matchingPrefix = firstWord;
+      let matchingAmountPrefixWords = 1;
+      const amountBasenameWords = baseName.split(" ").length;
+      while (matchingAmountPrefixWords < amountBasenameWords) {
+        const prefixToCheck = baseName
+          .split(" ")
+          .slice(0, matchingAmountPrefixWords + 1)
+          .join(" ");
+        if (
+          basenamesMatchingWithFirstWord.every((name) =>
+            name.startsWith(prefixToCheck)
+          )
+        ) {
+          matchingPrefix = prefixToCheck;
+          matchingAmountPrefixWords++;
+        } else {
+          break;
+        }
+      }
+      return matchingPrefix;
+    } else {
+      return baseName;
+    }
+  };
+
   Object.entries(stops).forEach(([stopId, stop]) => {
     const baseName = extractBaseName(stop.stop_name);
     const lat = parseFloat(stop.stop_lat);
     const lon = parseFloat(stop.stop_lon);
-    
+    const groupableBasename = findGroupablePrefix(baseName);
+
     // Skip stations without valid coordinates
     if (isNaN(lat) || isNaN(lon)) {
       return;
     }
-    
-    if (!baseNameGroups[baseName]) {
-      baseNameGroups[baseName] = [];
+
+    if (!baseNameGroups[groupableBasename]) {
+      baseNameGroups[groupableBasename] = [];
     }
-    
-    baseNameGroups[baseName].push({
+
+    baseNameGroups[groupableBasename].push({
       ...stop,
       stop_id: stopId,
       lat,
@@ -271,6 +309,10 @@ export function searchStationGroups(groups, searchTerm, limit = 20) {
       const bStartsDisplay = bDisplay.startsWith(lowerSearch);
       if (aStartsDisplay && !bStartsDisplay) return -1;
       if (!aStartsDisplay && bStartsDisplay) return 1;
+      
+      // NEW: Prioritize grouped stations (isGroup=true) over individual stations
+      if (a.isGroup && !b.isGroup) return -1;
+      if (!a.isGroup && b.isGroup) return 1;
       
       // Otherwise sort alphabetically by display name
       return aDisplay.localeCompare(bDisplay);
