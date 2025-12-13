@@ -51,9 +51,9 @@ docker compose up -d
 This will:
 - Build the Docker image
 - Start the container
-- Expose the application on port 80
+- Expose the application on port 32516
 
-The application will be available at http://localhost/
+The application will be available at http://localhost:32516/
 
 ### Stopping the Application
 
@@ -72,7 +72,7 @@ docker build -t night-train-map .
 ### Running the Docker Container Manually
 
 ```bash
-docker run -d -p 80:80 --name night-train-map night-train-map
+docker run -d -p 32516:80 --name night-train-map night-train-map
 ```
 
 ## Data Files

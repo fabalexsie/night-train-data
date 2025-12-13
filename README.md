@@ -26,7 +26,7 @@ To run the web application in production mode:
 docker compose up -d
 ```
 
-The application will be available at http://localhost/
+The application will be available at http://localhost:32516/
 
 For more details, see the [webapp README](./webapp/README.md).
 
