@@ -4,7 +4,7 @@
  * This runs during Docker build time to generate station-groups.json
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import clustersDbscan from '@turf/clusters-dbscan';
@@ -161,7 +161,12 @@ function groupStations(stops, maxDistance = 15) {
 // Main execution
 try {
   console.log('Reading stops.json...');
-  const stopsPath = join(__dirname, '..', 'public', 'data', 'stops.json');
+  let runningInDocker = true;
+  let stopsPath = join(__dirname, '..', 'public', 'data', 'stops.json');
+  if (!existsSync(stopsPath)) {
+    runningInDocker = false;
+    stopsPath = join(__dirname, '..', '..', 'data', 'latest', 'stops.json');
+  }
   
   let stopsData;
   try {
@@ -178,7 +183,9 @@ try {
   
   console.log(`Generated ${groups.length} station groups`);
   
-  const outputPath = join(__dirname, '..', 'public', 'data', 'station-groups.json');
+  const outputPath = runningInDocker
+    ? join(__dirname, '..', 'public', 'data', 'station-groups.json')
+    : join(__dirname, '..', '..', 'data', 'latest', 'station-groups.json');
   try {
     writeFileSync(outputPath, JSON.stringify(groups, null, 2));
     console.log(`Station groups saved to ${outputPath}`);
