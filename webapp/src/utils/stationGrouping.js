@@ -82,14 +82,15 @@ function extractBaseName(stationName) {
 }
 
 /**
- * Extract the first word from a station name
+ * Extract the first word from a station name, splitting at spaces and hyphens
  * E.g., "Frankfurt (Main) Hbf" -> "Frankfurt"
  *       "Berlin Hauptbahnhof" -> "Berlin"
+ *       "Roma-Termini" -> "Roma"
  * @param {string} stationName - Full station name
  * @returns {string} First word
  */
 function extractFirstWord(stationName) {
-  const match = stationName.match(/^(\S+)/);
+  const match = stationName.match(/^([^\s-]+)/);
   return match ? match[1] : stationName;
 }
 
