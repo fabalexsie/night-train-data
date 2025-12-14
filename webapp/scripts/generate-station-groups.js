@@ -162,7 +162,14 @@ function groupStations(stops, maxDistance = 15) {
 try {
   console.log('Reading stops.json...');
   const stopsPath = join(__dirname, '..', 'public', 'data', 'stops.json');
-  const stopsData = JSON.parse(readFileSync(stopsPath, 'utf-8'));
+  
+  let stopsData;
+  try {
+    stopsData = JSON.parse(readFileSync(stopsPath, 'utf-8'));
+  } catch (err) {
+    console.error(`Failed to read stops.json from ${stopsPath}:`, err.message);
+    process.exit(1);
+  }
   
   console.log(`Loaded ${Object.keys(stopsData).length} stops`);
   
@@ -172,9 +179,14 @@ try {
   console.log(`Generated ${groups.length} station groups`);
   
   const outputPath = join(__dirname, '..', 'public', 'data', 'station-groups.json');
-  writeFileSync(outputPath, JSON.stringify(groups, null, 2));
+  try {
+    writeFileSync(outputPath, JSON.stringify(groups, null, 2));
+    console.log(`Station groups saved to ${outputPath}`);
+  } catch (err) {
+    console.error(`Failed to write station-groups.json to ${outputPath}:`, err.message);
+    process.exit(1);
+  }
   
-  console.log(`Station groups saved to ${outputPath}`);
   console.log('Done!');
 } catch (error) {
   console.error('Error generating station groups:', error);
