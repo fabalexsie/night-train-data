@@ -82,6 +82,47 @@ function extractBaseName(stationName) {
 }
 
 /**
+ * Extract the first word from a station name
+ * E.g., "Frankfurt (Main) Hbf" -> "Frankfurt"
+ *       "Berlin Hauptbahnhof" -> "Berlin"
+ * @param {string} stationName - Full station name
+ * @returns {string} First word
+ */
+function extractFirstWord(stationName) {
+  const match = stationName.match(/^(\S+)/);
+  return match ? match[1] : stationName;
+}
+
+/**
+ * Find the longest common prefix of multiple strings
+ * @param {Array<string>} strings - Array of strings to find common prefix
+ * @returns {string} Longest common prefix, trimmed
+ */
+function longestCommonPrefix(strings) {
+  if (!strings || strings.length === 0) {
+    return '';
+  }
+  
+  // For single string, return it as-is since it's the only option
+  // The caller should decide how to use it
+  if (strings.length === 1) {
+    return strings[0].trim();
+  }
+  
+  // Sort strings to compare first and last (lexicographically)
+  const sorted = strings.slice().sort();
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  
+  let i = 0;
+  while (i < first.length && first[i] === last[i]) {
+    i++;
+  }
+  
+  return first.substring(0, i).trim();
+}
+
+/**
  * Group stations by their base name and proximity
  * @param {Object} stops - Object mapping stop_id to stop data
  * @param {number} maxDistance - Maximum distance in km to consider stations as a group (default: 50)
@@ -203,7 +244,89 @@ export function groupStations(stops, maxDistance = 50) {
     }
   });
   
-  return groups;
+  // Third pass: group stations by first word matching (within 25 km)
+  // This handles cases where base names differ but first words match
+  const firstWordMaxDistance = 25; // km
+  const firstWordGroups = {};
+  
+  // First, collect all individual stations (not already grouped) by their first word
+  groups.forEach((group, index) => {
+    if (group.isGroup) {
+      return; // Skip stations already grouped by base name
+    }
+    
+    const firstWord = extractFirstWord(group.displayName);
+    
+    // Skip generic first words
+    if (genericBaseNames.has(firstWord)) {
+      return;
+    }
+    
+    if (!firstWordGroups[firstWord]) {
+      firstWordGroups[firstWord] = [];
+    }
+    
+    firstWordGroups[firstWord].push({ group, index });
+  });
+  
+  // Now check each first word group for proximity
+  const newGroups = [];
+  const indicesToRemove = new Set();
+  
+  Object.entries(firstWordGroups).forEach(([firstWord, items]) => {
+    if (items.length < 2) {
+      return; // Need at least 2 stations to group
+    }
+    
+    // Check if all stations in this first word group are within 25km of each other
+    let maxDist = 0;
+    let canGroup = true;
+    
+    for (let i = 0; i < items.length && canGroup; i++) {
+      for (let j = i + 1; j < items.length && canGroup; j++) {
+        const dist = haversineDistance(
+          items[i].group.lat, items[i].group.lon,
+          items[j].group.lat, items[j].group.lon
+        );
+        maxDist = Math.max(maxDist, dist);
+        
+        if (maxDist > firstWordMaxDistance) {
+          canGroup = false;
+        }
+      }
+    }
+    
+    if (canGroup) {
+      // Create a new group with longest common prefix as the group name
+      const stationNames = items.map(item => item.group.displayName);
+      const commonPrefix = longestCommonPrefix(stationNames);
+      // Use common prefix if it's meaningful (not empty after trim), otherwise use first word
+      const groupName = (commonPrefix && commonPrefix.length > 0) ? commonPrefix : firstWord;
+      
+      const allStations = items.flatMap(item => item.group.stations);
+      const avgLat = allStations.reduce((sum, s) => sum + s.lat, 0) / allStations.length;
+      const avgLon = allStations.reduce((sum, s) => sum + s.lon, 0) / allStations.length;
+      
+      newGroups.push({
+        groupName: groupName,
+        displayName: `${groupName} (${allStations.length} stations)`,
+        isGroup: true,
+        stations: allStations.sort((a, b) => a.stop_name.localeCompare(b.stop_name)),
+        lat: avgLat,
+        lon: avgLon,
+        stop_country: getMostCommonCountry(allStations)
+      });
+      
+      // Mark these indices for removal
+      items.forEach(item => indicesToRemove.add(item.index));
+    }
+  });
+  
+  // Filter out the grouped stations and add the new groups
+  const finalGroups = groups.filter((_, index) => !indicesToRemove.has(index));
+  finalGroups.push(...newGroups);
+  
+  return finalGroups;
 }
 
 /**
