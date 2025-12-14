@@ -65,6 +65,9 @@ function longestCommonPrefix(strings) {
  * @returns {Array} Array of station groups, each with groupName, displayName, stations, and coordinates
  */
 export function groupStations(stops, maxDistance = 15) {
+  // Minimum length for a meaningful group name prefix
+  const MIN_GROUP_NAME_LENGTH = 3;
+  
   // Convert stops to array with coordinates
   const stopsArray = Object.entries(stops).map(([stopId, stop]) => {
     const lat = parseFloat(stop.stop_lat);
@@ -92,7 +95,8 @@ export function groupStations(stops, maxDistance = 15) {
   const pointsCollection = featureCollection(features);
   
   // Apply DBSCAN clustering with maxDistance in km and minPoints=1
-  // minPoints=1 means every point can be a cluster (even single stations)
+  // Note: minPoints=1 is used as per requirement "a group must at least have 1 member"
+  // This allows single stations to exist as individual clusters
   const clustered = clustersDbscan(pointsCollection, maxDistance, { minPoints: 1 });
   
   // Group features by cluster ID
@@ -136,7 +140,7 @@ export function groupStations(stops, maxDistance = 15) {
       let groupName = longestCommonPrefix(stationNames);
       
       // If the prefix is too short or empty, use a more meaningful name
-      if (!groupName || groupName.length < 3) {
+      if (!groupName || groupName.length < MIN_GROUP_NAME_LENGTH) {
         // Use "Cluster" with a reference to one of the station names
         const sortedNames = stationNames.slice().sort();
         groupName = `Cluster (${sortedNames[0]}, ...)`;
