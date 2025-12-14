@@ -1,9 +1,9 @@
 /**
- * Utility functions for grouping train stations using DBSCAN clustering
+ * Utility functions for grouping train stations using Complete Linkage clustering
  */
 
-import clustersDbscan from '@turf/clusters-dbscan';
-import { point, featureCollection } from '@turf/helpers';
+import distance from '@turf/distance';
+import { point } from '@turf/helpers';
 
 /**
  * Get the most common country from a list of stations
@@ -59,12 +59,26 @@ function longestCommonPrefix(strings) {
 }
 
 /**
- * Group stations using DBSCAN clustering algorithm
+ * Calculate distance between two stations in kilometers
+ * @param {Object} station1 - First station with lat/lon
+ * @param {Object} station2 - Second station with lat/lon
+ * @returns {number} Distance in kilometers
+ */
+function calculateDistance(station1, station2) {
+  const from = point([station1.lon, station1.lat]);
+  const to = point([station2.lon, station2.lat]);
+  return distance(from, to, { units: 'kilometers' });
+}
+
+/**
+ * Group stations using Complete Linkage clustering algorithm
+ * Complete Linkage ensures that the maximum distance between any two points
+ * in a cluster is at most the threshold distance.
  * @param {Object} stops - Object mapping stop_id to stop data
- * @param {number} maxDistance - Maximum distance in km for DBSCAN clustering (default: 15)
+ * @param {number} maxDistance - Maximum distance in km between any two points in a cluster (default: 25)
  * @returns {Array} Array of station groups, each with groupName, displayName, stations, and coordinates
  */
-export function groupStations(stops, maxDistance = 15) {
+export function groupStations(stops, maxDistance = 25) {
   // Minimum length for a meaningful group name prefix
   const MIN_GROUP_NAME_LENGTH = 3;
   
@@ -81,47 +95,75 @@ export function groupStations(stops, maxDistance = 15) {
     };
   }).filter(stop => !isNaN(stop.lat) && !isNaN(stop.lon)); // Filter out invalid coordinates
   
-  // Create GeoJSON FeatureCollection for DBSCAN
-  const features = stopsArray.map(stop => 
-    point([stop.lon, stop.lat], {
-      stop_id: stop.stop_id,
-      stop_name: stop.stop_name,
-      stop_country: stop.stop_country,
-      lat: stop.lat,
-      lon: stop.lon
-    })
-  );
+  // Initialize each station as its own cluster
+  const clusters = stopsArray.map((stop) => [stop]);
   
-  const pointsCollection = featureCollection(features);
+  // Cache for maximum distances between clusters
+  const maxDistCache = new Map();
   
-  // Apply DBSCAN clustering with maxDistance in km and minPoints=1
-  // Note: minPoints=1 is used as per requirement "a group must at least have 1 member"
-  // This allows single stations to exist as individual clusters
-  const clustered = clustersDbscan(pointsCollection, maxDistance, { minPoints: 1 });
+  function getCacheKey(i, j) {
+    return i < j ? `${i},${j}` : `${j},${i}`;
+  }
   
-  // Group features by cluster ID
-  const clusterMap = new Map();
-  
-  clustered.features.forEach(feature => {
-    const clusterId = feature.properties.cluster;
-    
-    if (!clusterMap.has(clusterId)) {
-      clusterMap.set(clusterId, []);
+  function getMaxDistBetweenClusters(clusterI, clusterJ, iIdx, jIdx) {
+    const key = getCacheKey(iIdx, jIdx);
+    if (maxDistCache.has(key)) {
+      return maxDistCache.get(key);
     }
     
-    clusterMap.get(clusterId).push({
-      stop_id: feature.properties.stop_id,
-      stop_name: feature.properties.stop_name,
-      stop_country: feature.properties.stop_country,
-      lat: feature.properties.lat,
-      lon: feature.properties.lon
-    });
-  });
+    let maxDist = 0;
+    for (const station1 of clusterI) {
+      for (const station2 of clusterJ) {
+        const dist = calculateDistance(station1, station2);
+        if (dist > maxDist) {
+          maxDist = dist;
+        }
+      }
+    }
+    
+    maxDistCache.set(key, maxDist);
+    return maxDist;
+  }
+  
+  // Complete Linkage clustering: greedily merge closest valid cluster pairs
+  let iteration = 0;
+  while (true) {
+    iteration++;
+    let bestI = -1;
+    let bestJ = -1;
+    let bestDist = Infinity;
+    
+    // Find the pair of clusters with minimum complete linkage distance
+    for (let i = 0; i < clusters.length; i++) {
+      for (let j = i + 1; j < clusters.length; j++) {
+        const maxDist = getMaxDistBetweenClusters(clusters[i], clusters[j], i, j);
+        
+        // Only consider merges that keep all points within maxDistance
+        if (maxDist <= maxDistance && maxDist < bestDist) {
+          bestDist = maxDist;
+          bestI = i;
+          bestJ = j;
+        }
+      }
+    }
+    
+    // If no valid merge found, stop
+    if (bestI === -1) {
+      break;
+    }
+    
+    // Merge the two clusters
+    clusters[bestI] = clusters[bestI].concat(clusters[bestJ]);
+    clusters.splice(bestJ, 1);
+    
+    // Invalidate cache entries involving merged clusters
+    maxDistCache.clear();
+  }
   
   // Convert clusters to groups
   const groups = [];
   
-  clusterMap.forEach((stations) => {
+  for (const stations of clusters) {
     if (stations.length === 1) {
       // Single station cluster
       const station = stations[0];
@@ -160,7 +202,7 @@ export function groupStations(stops, maxDistance = 15) {
         stop_country: getMostCommonCountry(stations)
       });
     }
-  });
+  }
   
   return groups;
 }
