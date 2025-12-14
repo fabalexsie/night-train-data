@@ -14,6 +14,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
+ * Remove fields with empty string values from an object
+ */
+function removeEmptyFields(obj) {
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== '') {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
  * Get the most common country from a list of stations
  */
 function getMostCommonCountry(stations) {
@@ -79,12 +92,18 @@ function groupStations(stops, maxDistance = 25) {
     const lat = parseFloat(stop.stop_lat);
     const lon = parseFloat(stop.stop_lon);
     
-    return {
-      ...stop,
+    // Replace undefined with empty string, then remove empty string fields
+    const cleanStop = {};
+    for (const [key, value] of Object.entries(stop)) {
+      cleanStop[key] = value === undefined ? '' : value;
+    }
+    
+    return removeEmptyFields({
+      ...cleanStop,
       stop_id: stopId,
       lat,
       lon
-    };
+    });
   }).filter(stop => !isNaN(stop.lat) && !isNaN(stop.lon));
   
   console.log(`Processing ${stopsArray.length} valid stations...`);
