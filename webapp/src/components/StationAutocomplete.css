@@ -4,10 +4,36 @@
   gap: 1rem;
 }
 
+.autocomplete-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .station-autocomplete h2 {
   font-size: 1.5rem;
   color: #333;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
+}
+
+.grouping-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+
+.grouping-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.grouping-toggle:hover {
+  color: #333;
 }
 
 .search-container {

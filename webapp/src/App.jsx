@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import StationAutocomplete from './components/StationAutocomplete'
 import TripMap from './components/TripMap'
-import { saveSelectedStationGroups, loadSelectedStationGroups } from './utils/localStorage'
+import { saveSelectedStationGroups, loadSelectedStationGroups, saveGroupingEnabled, loadGroupingEnabled } from './utils/localStorage'
 import './App.css'
 
 function App() {
@@ -13,7 +13,38 @@ function App() {
   const [filteredTrips, setFilteredTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [groupingEnabled, setGroupingEnabled] = useState(true)
   const isRestoredRef = useRef(false)
+
+  // Flatten station groups into individual stations when grouping is disabled
+  const displayStationGroups = useMemo(() => {
+    if (groupingEnabled) {
+      return stationGroups;
+    }
+    
+    // Flatten all groups into individual stations
+    const flattenedStations = [];
+    stationGroups.forEach(group => {
+      group.stations.forEach(station => {
+        flattenedStations.push({
+          groupName: station.stop_name,
+          displayName: station.stop_name,
+          isGroup: false,
+          stations: [station],
+          lat: station.lat,
+          lon: station.lon,
+          stop_country: station.stop_country
+        });
+      });
+    });
+    return flattenedStations;
+  }, [stationGroups, groupingEnabled]);
+
+  // Restore grouping preference from localStorage
+  useEffect(() => {
+    const savedGroupingEnabled = loadGroupingEnabled();
+    setGroupingEnabled(savedGroupingEnabled);
+  }, []);
 
   // Restore selected station groups from localStorage when data is loaded
   useEffect(() => {
@@ -132,6 +163,11 @@ function App() {
     }
   }, [selectedStationGroups]);
 
+  // Save grouping preference to localStorage whenever it changes
+  useEffect(() => {
+    saveGroupingEnabled(groupingEnabled);
+  }, [groupingEnabled]);
+
   const handleStationGroupAdd = (group) => {
     if (!selectedStationGroups.find(g => g.groupName === group.groupName)) {
       setSelectedStationGroups([...selectedStationGroups, group])
@@ -140,6 +176,10 @@ function App() {
 
   const handleStationGroupRemove = (groupName) => {
     setSelectedStationGroups(selectedStationGroups.filter(g => g.groupName !== groupName))
+  }
+
+  const handleToggleGrouping = () => {
+    setGroupingEnabled(prev => !prev);
   }
 
   if (loading) {
@@ -160,10 +200,12 @@ function App() {
       <div className="app-content">
         <aside className="sidebar">
           <StationAutocomplete 
-            stationGroups={stationGroups}
+            stationGroups={displayStationGroups}
             selectedGroups={selectedStationGroups}
             onGroupAdd={handleStationGroupAdd}
             onGroupRemove={handleStationGroupRemove}
+            groupingEnabled={groupingEnabled}
+            onToggleGrouping={handleToggleGrouping}
           />
           
           <div className="trip-info">

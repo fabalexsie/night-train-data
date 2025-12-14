@@ -3,6 +3,7 @@
  */
 
 const STORAGE_KEY = 'selectedStationGroups';
+const GROUPING_ENABLED_KEY = 'groupingEnabled';
 
 /**
  * Save selected station groups to localStorage
@@ -42,5 +43,34 @@ export function clearSelectedStationGroups() {
     localStorage.removeItem(STORAGE_KEY);
   } catch (error) {
     console.error('Error clearing station groups from localStorage:', error);
+  }
+}
+
+/**
+ * Save grouping enabled preference to localStorage
+ * @param {boolean} enabled - Whether grouping is enabled
+ */
+export function saveGroupingEnabled(enabled) {
+  try {
+    localStorage.setItem(GROUPING_ENABLED_KEY, JSON.stringify(enabled));
+  } catch (error) {
+    console.error('Error saving grouping preference to localStorage:', error);
+  }
+}
+
+/**
+ * Load grouping enabled preference from localStorage
+ * @returns {boolean} True if grouping is enabled (default: true)
+ */
+export function loadGroupingEnabled() {
+  try {
+    const serialized = localStorage.getItem(GROUPING_ENABLED_KEY);
+    if (serialized === null) {
+      return true; // Default to grouping enabled
+    }
+    return JSON.parse(serialized);
+  } catch (error) {
+    console.error('Error loading grouping preference from localStorage:', error);
+    return true; // Default to grouping enabled
   }
 }
