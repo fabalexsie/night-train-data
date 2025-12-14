@@ -70,7 +70,6 @@ function calculateDistance(station1, station2) {
  * Group stations using Complete Linkage clustering algorithm
  * Complete Linkage ensures that the maximum distance between any two points
  * in a cluster is at most the threshold distance.
- * This is the same logic as in webapp/src/utils/stationGrouping.js
  */
 function groupStations(stops, maxDistance = 25) {
   const MIN_GROUP_NAME_LENGTH = 3;
