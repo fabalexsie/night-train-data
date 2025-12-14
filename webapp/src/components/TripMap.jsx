@@ -63,6 +63,37 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
     return ids
   }, [selectedStationGroups])
 
+  // Find selected stations that are NOT on any route
+  const selectedStationsNotOnRoute = useMemo(() => {
+    // Collect all stop IDs that appear in filtered trips
+    const stopsOnRoutes = new Set()
+    filteredTrips.forEach(({ stops: tripStops }) => {
+      tripStops.forEach(ts => {
+        stopsOnRoutes.add(ts.stop_id)
+      })
+    })
+
+    // Find selected stations that are not on any route (using Set to avoid duplicates)
+    const notOnRouteIds = new Set()
+    const notOnRoute = []
+    if (selectedStationGroups && Array.isArray(selectedStationGroups)) {
+      selectedStationGroups.forEach(group => {
+        if (group && group.stations) {
+          group.stations.forEach(station => {
+            if (station && station.stop_id && !stopsOnRoutes.has(station.stop_id) && !notOnRouteIds.has(station.stop_id)) {
+              const stop = stops[station.stop_id]
+              if (stop && stop.stop_lat && stop.stop_lon) {
+                notOnRouteIds.add(station.stop_id)
+                notOnRoute.push(stop)
+              }
+            }
+          })
+        }
+      })
+    }
+    return notOnRoute
+  }, [selectedStationGroups, filteredTrips, stops])
+
   // Generate random colors for different trips
   const getColorForTrip = (index) => {
     const colors = [
@@ -171,6 +202,24 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
             </div>
           )
         })}
+
+        {/* Add markers for selected stations not on any route */}
+        {selectedStationsNotOnRoute.map((stop) => (
+          <Marker
+            key={`not-on-route-${stop.stop_id}`}
+            position={[stop.stop_lat, stop.stop_lon]}
+          >
+            <Popup>
+              <div className="stop-popup">
+                <strong>{stop.stop_name}</strong>
+                {stop.stop_country && <div>Country: {stop.stop_country}</div>}
+                <div style={{ marginTop: '0.5rem', color: '#666' }}>
+                  Not on any displayed route
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       {filteredTrips.length === 0 && (
