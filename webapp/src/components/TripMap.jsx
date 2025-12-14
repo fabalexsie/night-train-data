@@ -49,11 +49,17 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
   // Create a Set of selected station IDs for quick lookup
   const selectedStationIds = useMemo(() => {
     const ids = new Set()
-    selectedStationGroups.forEach(group => {
-      group.stations.forEach(station => {
-        ids.add(station.stop_id)
+    if (selectedStationGroups && Array.isArray(selectedStationGroups)) {
+      selectedStationGroups.forEach(group => {
+        if (group && group.stations) {
+          group.stations.forEach(station => {
+            if (station && station.stop_id) {
+              ids.add(station.stop_id)
+            }
+          })
+        }
       })
-    })
+    }
     return ids
   }, [selectedStationGroups])
 
