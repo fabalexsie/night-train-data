@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import StationAutocomplete from './components/StationAutocomplete'
 import TripMap from './components/TripMap'
-import { groupStations } from './utils/stationGrouping'
 import { saveSelectedStationGroups, loadSelectedStationGroups } from './utils/localStorage'
 import './App.css'
 
@@ -9,21 +8,17 @@ function App() {
   const [stops, setStops] = useState({})
   const [trips, setTrips] = useState({})
   const [tripStops, setTripStops] = useState({})
+  const [stationGroups, setStationGroups] = useState([])
   const [selectedStationGroups, setSelectedStationGroups] = useState([])
   const [filteredTrips, setFilteredTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const isRestoredRef = useRef(false)
 
-  // Group stations for easier selection
-  const stationGroups = useMemo(() => {
-    return groupStations(stops)
-  }, [stops])
-
   // Restore selected station groups from localStorage when data is loaded
   useEffect(() => {
-    if (Object.keys(stops).length === 0) {
-      return; // Wait for data to load
+    if (stationGroups.length === 0) {
+      return; // Wait for station groups to load
     }
 
     const savedGroups = loadSelectedStationGroups();
@@ -33,38 +28,42 @@ function App() {
     }
     // Mark as restored regardless of whether there were saved groups
     isRestoredRef.current = true;
-  }, [stops]); // Run once when stops are loaded
+  }, [stationGroups]); // Run once when station groups are loaded
 
   // Load data from JSON files
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [stopsRes, tripsRes, tripStopsRes] = await Promise.all([
+        const [stopsRes, tripsRes, tripStopsRes, stationGroupsRes] = await Promise.all([
           fetch('/data/stops.json'),
           fetch('/data/trips.json'),
-          fetch('/data/trip_stop.json')
+          fetch('/data/trip_stop.json'),
+          fetch('/data/station-groups.json')
         ])
 
-        if (!stopsRes.ok || !tripsRes.ok || !tripStopsRes.ok) {
+        if (!stopsRes.ok || !tripsRes.ok || !tripStopsRes.ok || !stationGroupsRes.ok) {
           throw new Error('Failed to load data')
         }
 
-        const [stopsData, tripsData, tripStopsData] = await Promise.all([
+        const [stopsData, tripsData, tripStopsData, stationGroupsData] = await Promise.all([
           stopsRes.json(),
           tripsRes.json(),
-          tripStopsRes.json()
+          tripStopsRes.json(),
+          stationGroupsRes.json()
         ])
 
         console.log('Data loaded:', {
           stops: Object.keys(stopsData).length,
           trips: Object.keys(tripsData).length,
-          tripStops: Object.keys(tripStopsData).length
+          tripStops: Object.keys(tripStopsData).length,
+          stationGroups: stationGroupsData.length
         })
 
         setStops(stopsData)
         setTrips(tripsData)
         setTripStops(tripStopsData)
+        setStationGroups(stationGroupsData)
         setLoading(false)
       } catch (err) {
         console.error('Error loading data:', err)
