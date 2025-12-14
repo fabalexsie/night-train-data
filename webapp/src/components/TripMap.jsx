@@ -165,6 +165,12 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
                           <div style={{ marginTop: '0.5rem', color: '#666' }}>
                             <strong>{trip.trip_short_name}</strong>
                             <br />
+                            {trip.trip_origin && trip.trip_headsign && (
+                              <>
+                                {trip.trip_origin} → {trip.trip_headsign}
+                                <br />
+                              </>
+                            )}
                             Stop {stopIndex + 1} of {tripStops.length}
                           </div>
                         </div>
@@ -191,6 +197,12 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
                           <div style={{ marginTop: '0.5rem', color: '#666' }}>
                             <strong>{trip.trip_short_name}</strong>
                             <br />
+                            {trip.trip_origin && trip.trip_headsign && (
+                              <>
+                                {trip.trip_origin} → {trip.trip_headsign}
+                                <br />
+                              </>
+                            )}
                             Stop {stopIndex + 1} of {tripStops.length}
                           </div>
                         </div>
