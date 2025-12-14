@@ -35,11 +35,13 @@ function StationAutocomplete({ stationGroups, selectedGroups, onGroupAdd, onGrou
     <div className="station-autocomplete">
       <div className="autocomplete-header">
         <h2>Filter by Stations</h2>
-        <label className="grouping-toggle">
+        <label htmlFor="grouping-toggle" className="grouping-toggle">
           <input 
+            id="grouping-toggle"
             type="checkbox" 
             checked={groupingEnabled} 
             onChange={onToggleGrouping}
+            aria-label="Toggle station grouping"
           />
           <span>Group nearby stations</span>
         </label>

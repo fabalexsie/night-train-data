@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import StationAutocomplete from './components/StationAutocomplete'
 import TripMap from './components/TripMap'
-import { saveSelectedStationGroups, loadSelectedStationGroups, saveGroupingEnabled, loadGroupingEnabled } from './utils/localStorage'
+import { saveSelectedStationGroups, loadSelectedStationGroups, loadGroupingEnabled, saveGroupingEnabled } from './utils/localStorage'
 import './App.css'
 
 function App() {
@@ -13,12 +13,12 @@ function App() {
   const [filteredTrips, setFilteredTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [groupingEnabled, setGroupingEnabled] = useState(true)
+  const [groupingEnabled, setGroupingEnabled] = useState(() => loadGroupingEnabled())
   const isRestoredRef = useRef(false)
 
   // Flatten station groups into individual stations when grouping is disabled
   const displayStationGroups = useMemo(() => {
-    if (groupingEnabled) {
+    if (groupingEnabled || stationGroups.length === 0) {
       return stationGroups;
     }
     
@@ -39,12 +39,6 @@ function App() {
     });
     return flattenedStations;
   }, [stationGroups, groupingEnabled]);
-
-  // Restore grouping preference from localStorage
-  useEffect(() => {
-    const savedGroupingEnabled = loadGroupingEnabled();
-    setGroupingEnabled(savedGroupingEnabled);
-  }, []);
 
   // Restore selected station groups from localStorage when data is loaded
   useEffect(() => {
