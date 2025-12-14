@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { searchStationGroups } from '../utils/searchInStationGroups.js'
 import './StationAutocomplete.css'
 
-function StationAutocomplete({ stationGroups, selectedGroups, onGroupAdd, onGroupRemove }) {
+function StationAutocomplete({ stationGroups, selectedGroups, onGroupAdd, onGroupRemove, groupingEnabled, onToggleGrouping }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
 
@@ -33,7 +33,19 @@ function StationAutocomplete({ stationGroups, selectedGroups, onGroupAdd, onGrou
 
   return (
     <div className="station-autocomplete">
-      <h2>Filter by Stations</h2>
+      <div className="autocomplete-header">
+        <h2>Filter by Stations</h2>
+        <label htmlFor="grouping-toggle" className="grouping-toggle">
+          <input 
+            id="grouping-toggle"
+            type="checkbox" 
+            checked={groupingEnabled} 
+            onChange={onToggleGrouping}
+            aria-label="Toggle station grouping"
+          />
+          <span>Group nearby stations</span>
+        </label>
+      </div>
       
       <div className="search-container">
         <input
