@@ -188,6 +188,7 @@ function App() {
           <TripMap 
             stops={stops}
             filteredTrips={filteredTrips}
+            selectedStationGroups={selectedStationGroups}
           />
         </main>
       </div>
