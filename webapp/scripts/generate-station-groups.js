@@ -90,83 +90,101 @@ function groupStations(stops, maxDistance = 25) {
   
   console.log(`Processing ${stopsArray.length} valid stations...`);
   
-  // Initialize each station as its own cluster
-  const clusters = stopsArray.map((stop) => [stop]);
+  const n = stopsArray.length;
   
-  // Cache for maximum distances between clusters
-  const maxDistCache = new Map();
+  // Build neighbor list for each station (only within maxDistance)
+  console.log('Building neighbor lists and merge queue...');
+  const mergeQueue = [];
   
-  function getCacheKey(i, j) {
-    return i < j ? `${i},${j}` : `${j},${i}`;
+  for (let i = 0; i < n; i++) {
+    if (i % 1000 === 0) {
+      console.log(`  Processed ${i}/${n} stations...`);
+    }
+    for (let j = i + 1; j < n; j++) {
+      const dist = calculateDistance(stopsArray[i], stopsArray[j]);
+      if (dist <= maxDistance) {
+        mergeQueue.push({ i, j, dist });
+      }
+    }
   }
   
-  function getMaxDistBetweenClusters(clusterI, clusterJ, iIdx, jIdx) {
-    const key = getCacheKey(iIdx, jIdx);
-    if (maxDistCache.has(key)) {
-      return maxDistCache.get(key);
+  console.log(`Found ${mergeQueue.length} pairs within ${maxDistance}km`);
+  console.log('Sorting merge queue...');
+  mergeQueue.sort((a, b) => a.dist - b.dist);
+  
+  // Union-Find for cluster tracking
+  const parent = new Array(n).fill(0).map((_, i) => i);
+  const clusterStations = new Array(n).fill(null).map((_, i) => [i]);
+  
+  function find(x) {
+    if (parent[x] !== x) {
+      parent[x] = find(parent[x]);
+    }
+    return parent[x];
+  }
+  
+  // Process merges in order of increasing distance
+  console.log('Processing merges...');
+  let processed = 0;
+  let merged = 0;
+  
+  for (const { i, j } of mergeQueue) {
+    processed++;
+    if (processed % 10000 === 0) {
+      console.log(`  Processed ${processed}/${mergeQueue.length} merges (${merged} successful)...`);
     }
     
-    let maxDist = 0;
-    for (const station1 of clusterI) {
-      for (const station2 of clusterJ) {
-        const dist = calculateDistance(station1, station2);
-        if (dist > maxDist) {
-          maxDist = dist;
+    const rootI = find(i);
+    const rootJ = find(j);
+    
+    if (rootI === rootJ) continue; // Already in same cluster
+    
+    // Check complete linkage constraint: max distance between any two points
+    const stationsI = clusterStations[rootI];
+    const stationsJ = clusterStations[rootJ];
+    
+    let valid = true;
+    
+    for (const si of stationsI) {
+      if (!valid) break;
+      for (const sj of stationsJ) {
+        const d = calculateDistance(stopsArray[si], stopsArray[sj]);
+        if (d > maxDistance) {
+          valid = false;
+          break;
         }
       }
     }
     
-    maxDistCache.set(key, maxDist);
-    return maxDist;
+    // Merge if valid
+    if (valid) {
+      parent[rootJ] = rootI;
+      clusterStations[rootI] = stationsI.concat(stationsJ);
+      clusterStations[rootJ] = [];
+      merged++;
+    }
   }
   
-  // Complete Linkage clustering: greedily merge closest valid cluster pairs
-  console.log('Starting clustering...');
-  let iteration = 0;
-  while (true) {
-    iteration++;
-    if (iteration % 100 === 0) {
-      console.log(`  Iteration ${iteration}, clusters remaining: ${clusters.length}`);
+  console.log(`Completed processing. Merged ${merged} times.`);
+  
+  // Build final clusters
+  console.log('Building final clusters...');
+  const clusterMap = new Map();
+  for (let i = 0; i < n; i++) {
+    const root = find(i);
+    if (!clusterMap.has(root)) {
+      clusterMap.set(root, []);
     }
-    
-    let bestI = -1;
-    let bestJ = -1;
-    let bestDist = Infinity;
-    
-    // Find the pair of clusters with minimum complete linkage distance
-    for (let i = 0; i < clusters.length; i++) {
-      for (let j = i + 1; j < clusters.length; j++) {
-        const maxDist = getMaxDistBetweenClusters(clusters[i], clusters[j], i, j);
-        
-        // Only consider merges that keep all points within maxDistance
-        if (maxDist <= maxDistance && maxDist < bestDist) {
-          bestDist = maxDist;
-          bestI = i;
-          bestJ = j;
-        }
-      }
-    }
-    
-    // If no valid merge found, stop
-    if (bestI === -1) {
-      break;
-    }
-    
-    // Merge the two clusters
-    clusters[bestI] = clusters[bestI].concat(clusters[bestJ]);
-    clusters.splice(bestJ, 1);
-    
-    // Invalidate cache entries involving merged clusters
-    maxDistCache.clear();
+    clusterMap.get(root).push(stopsArray[i]);
   }
   
-  console.log(`Clustering complete. Final number of clusters: ${clusters.length}`);
+  console.log(`Final number of clusters: ${clusterMap.size}`);
   
   // Convert clusters to groups
   console.log('Converting clusters to groups...');
   const groups = [];
   
-  for (const stations of clusters) {
+  clusterMap.forEach((stations) => {
     if (stations.length === 1) {
       // Single station cluster
       const station = stations[0];
@@ -204,7 +222,7 @@ function groupStations(stops, maxDistance = 25) {
         stop_country: getMostCommonCountry(stations)
       });
     }
-  }
+  });
   
   return groups;
 }
