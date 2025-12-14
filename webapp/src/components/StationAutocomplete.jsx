@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { searchStationGroups } from '../utils/stationGrouping'
+import { searchStationGroups } from '../utils/searchInStationGroups.js'
 import './StationAutocomplete.css'
 
 function StationAutocomplete({ stationGroups, selectedGroups, onGroupAdd, onGroupRemove }) {
