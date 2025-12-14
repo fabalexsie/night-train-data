@@ -255,7 +255,7 @@ try {
     ? join(__dirname, '..', 'public', 'data', 'station-groups.json')
     : join(__dirname, '..', '..', 'data', 'latest', 'station-groups.json');
   try {
-    writeFileSync(outputPath, JSON.stringify(groups, null, 2));
+    writeFileSync(outputPath, JSON.stringify(groups));
     console.log(`Station groups saved to ${outputPath}`);
   } catch (err) {
     console.error(`Failed to write station-groups.json to ${outputPath}:`, err.message);
