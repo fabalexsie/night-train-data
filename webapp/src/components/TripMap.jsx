@@ -73,15 +73,17 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
       })
     })
 
-    // Find selected stations that are not on any route
+    // Find selected stations that are not on any route (using Set to avoid duplicates)
+    const notOnRouteIds = new Set()
     const notOnRoute = []
     if (selectedStationGroups && Array.isArray(selectedStationGroups)) {
       selectedStationGroups.forEach(group => {
         if (group && group.stations) {
           group.stations.forEach(station => {
-            if (station && station.stop_id && !stopsOnRoutes.has(station.stop_id)) {
+            if (station && station.stop_id && !stopsOnRoutes.has(station.stop_id) && !notOnRouteIds.has(station.stop_id)) {
               const stop = stops[station.stop_id]
               if (stop && stop.stop_lat && stop.stop_lon) {
+                notOnRouteIds.add(station.stop_id)
                 notOnRoute.push(stop)
               }
             }
