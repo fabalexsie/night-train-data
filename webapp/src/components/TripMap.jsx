@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
+import { useEffect, useRef, useMemo } from 'react'
+import { MapContainer, TileLayer, Polyline, Marker, CircleMarker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './TripMap.css'
@@ -43,8 +43,19 @@ function MapBoundsUpdater({ filteredTrips, stops }) {
   return null
 }
 
-function TripMap({ stops, filteredTrips }) {
+function TripMap({ stops, filteredTrips, selectedStationGroups }) {
   const mapRef = useRef(null)
+
+  // Create a Set of selected station IDs for quick lookup
+  const selectedStationIds = useMemo(() => {
+    const ids = new Set()
+    selectedStationGroups.forEach(group => {
+      group.stations.forEach(station => {
+        ids.add(station.stop_id)
+      })
+    })
+    return ids
+  }, [selectedStationGroups])
 
   // Generate random colors for different trips
   const getColorForTrip = (index) => {
@@ -96,29 +107,60 @@ function TripMap({ stops, filteredTrips }) {
                 opacity={0.7}
               />
 
-              {/* Add markers for each stop */}
+              {/* Add markers for selected stops, circles for other stops */}
               {tripStops.map((ts, stopIndex) => {
                 const stop = stops[ts.stop_id]
                 if (!stop || !stop.stop_lat || !stop.stop_lon) return null
 
-                return (
-                  <Marker
-                    key={ts.train_stop_id}
-                    position={[stop.stop_lat, stop.stop_lon]}
-                  >
-                    <Popup>
-                      <div className="stop-popup">
-                        <strong>{stop.stop_name}</strong>
-                        {stop.stop_country && <div>Country: {stop.stop_country}</div>}
-                        <div style={{ marginTop: '0.5rem', color: '#666' }}>
-                          <strong>{trip.trip_short_name}</strong>
-                          <br />
-                          Stop {stopIndex + 1} of {tripStops.length}
+                const isSelected = selectedStationIds.has(ts.stop_id)
+
+                // Use Marker for selected stations, CircleMarker for others
+                if (isSelected) {
+                  return (
+                    <Marker
+                      key={ts.train_stop_id}
+                      position={[stop.stop_lat, stop.stop_lon]}
+                    >
+                      <Popup>
+                        <div className="stop-popup">
+                          <strong>{stop.stop_name}</strong>
+                          {stop.stop_country && <div>Country: {stop.stop_country}</div>}
+                          <div style={{ marginTop: '0.5rem', color: '#666' }}>
+                            <strong>{trip.trip_short_name}</strong>
+                            <br />
+                            Stop {stopIndex + 1} of {tripStops.length}
+                          </div>
                         </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
+                      </Popup>
+                    </Marker>
+                  )
+                } else {
+                  return (
+                    <CircleMarker
+                      key={ts.train_stop_id}
+                      center={[stop.stop_lat, stop.stop_lon]}
+                      radius={4}
+                      pathOptions={{
+                        fillColor: color,
+                        fillOpacity: 0.6,
+                        color: color,
+                        weight: 1
+                      }}
+                    >
+                      <Popup>
+                        <div className="stop-popup">
+                          <strong>{stop.stop_name}</strong>
+                          {stop.stop_country && <div>Country: {stop.stop_country}</div>}
+                          <div style={{ marginTop: '0.5rem', color: '#666' }}>
+                            <strong>{trip.trip_short_name}</strong>
+                            <br />
+                            Stop {stopIndex + 1} of {tripStops.length}
+                          </div>
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  )
+                }
               })}
             </div>
           )
