@@ -1,29 +1,9 @@
 /**
- * Utility functions for grouping train stations with similar names at similar locations
+ * Utility functions for grouping train stations using DBSCAN clustering
  */
 
-/**
- * Calculate the Haversine distance between two points in kilometers
- * @param {number} lat1 - Latitude of first point
- * @param {number} lon1 - Longitude of first point
- * @param {number} lat2 - Latitude of second point
- * @param {number} lon2 - Longitude of second point
- * @returns {number} Distance in kilometers
- */
-function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in km
-  const toRad = (deg) => deg * Math.PI / 180;
-  
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import clustersDbscan from '@turf/clusters-dbscan';
+import { point, featureCollection } from '@turf/helpers';
 
 /**
  * Get the most common country from a list of stations
@@ -47,52 +27,7 @@ function getMostCommonCountry(stations) {
   );
 }
 
-/**
- * Extract the base name from a station name
- * E.g., "Frankfurt (Main) Hbf" -> "Frankfurt (Main)"
- *       "Berlin Hauptbahnhof" -> "Berlin"
- * @param {string} stationName - Full station name
- * @returns {string} Base name
- */
-function extractBaseName(stationName) {
-  // Keep text in parentheses as part of base name
-  if (stationName.includes('(') && stationName.includes(')')) {
-    const closeParen = stationName.lastIndexOf(')');
-    return stationName.substring(0, closeParen + 1).trim();
-  }
-  
-  // Common station suffixes to remove (check from end of string)
-  const suffixes = [
-    'Hauptbahnhof', 'Hbf', 'HB', 'Bf', 'Station', 'Gare',
-    'Centrale', 'Central', 'Airport', 'Flughafen', 
-    'Sud', 'Süd', 'Nord', 'Ost', 'West', 'Est',
-    'Ostbahnhof', 'Westbahnhof', 'Südbahnhof', 'Nordbahnhof',
-    'Ostkreuz', 'Westkreuz'
-  ];
-  
-  // Try to match suffixes at the end of the string
-  for (const suffix of suffixes) {
-    const pattern = ' ' + suffix;
-    if (stationName.endsWith(pattern) || stationName.endsWith(pattern + ' ')) {
-      return stationName.substring(0, stationName.lastIndexOf(pattern)).trim();
-    }
-  }
-  
-  return stationName;
-}
 
-/**
- * Extract the first word from a station name, splitting at spaces and hyphens
- * E.g., "Frankfurt (Main) Hbf" -> "Frankfurt"
- *       "Berlin Hauptbahnhof" -> "Berlin"
- *       "Roma-Termini" -> "Roma"
- * @param {string} stationName - Full station name
- * @returns {string} First word
- */
-function extractFirstWord(stationName) {
-  const match = stationName.match(/^([^\s-]+)/);
-  return match ? match[1] : stationName;
-}
 
 /**
  * Find the longest common prefix of multiple strings
@@ -124,67 +59,74 @@ function longestCommonPrefix(strings) {
 }
 
 /**
- * Group stations by their base name and proximity
+ * Group stations using DBSCAN clustering algorithm
  * @param {Object} stops - Object mapping stop_id to stop data
- * @param {number} maxDistance - Maximum distance in km to consider stations as a group (default: 50)
+ * @param {number} maxDistance - Maximum distance in km for DBSCAN clustering (default: 15)
  * @returns {Array} Array of station groups, each with groupName, displayName, stations, and coordinates
  */
-export function groupStations(stops, maxDistance = 50) {
-  // Generic base names that shouldn't be grouped (too common)
-  const genericBaseNames = new Set([
-    'Bad', 'St.', 'St', 'La', 'Le', 'Les', 'Il', 'El', 'De', 'Den', 'Het'
-  ]);
+export function groupStations(stops, maxDistance = 15) {
+  // Minimum length for a meaningful group name prefix
+  const MIN_GROUP_NAME_LENGTH = 3;
   
-  // First pass: group by base name
-  const baseNameGroups = {};
-
-  Object.entries(stops).forEach(([stopId, stop]) => {
-    const baseName = extractBaseName(stop.stop_name);
+  // Convert stops to array with coordinates
+  const stopsArray = Object.entries(stops).map(([stopId, stop]) => {
     const lat = parseFloat(stop.stop_lat);
     const lon = parseFloat(stop.stop_lon);
-
-    // Skip stations without valid coordinates
-    if (isNaN(lat) || isNaN(lon)) {
-      return;
-    }
-
-    if (!baseNameGroups[baseName]) {
-      baseNameGroups[baseName] = [];
-    }
-
-    baseNameGroups[baseName].push({
+    
+    return {
       ...stop,
       stop_id: stopId,
       lat,
       lon
+    };
+  }).filter(stop => !isNaN(stop.lat) && !isNaN(stop.lon)); // Filter out invalid coordinates
+  
+  // Create GeoJSON FeatureCollection for DBSCAN
+  const features = stopsArray.map(stop => 
+    point([stop.lon, stop.lat], {
+      stop_id: stop.stop_id,
+      stop_name: stop.stop_name,
+      stop_country: stop.stop_country,
+      lat: stop.lat,
+      lon: stop.lon
+    })
+  );
+  
+  const pointsCollection = featureCollection(features);
+  
+  // Apply DBSCAN clustering with maxDistance in km and minPoints=1
+  // Note: minPoints=1 is used as per requirement "a group must at least have 1 member"
+  // This allows single stations to exist as individual clusters
+  const clustered = clustersDbscan(pointsCollection, maxDistance, { minPoints: 1 });
+  
+  // Group features by cluster ID
+  const clusterMap = new Map();
+  
+  clustered.features.forEach(feature => {
+    const clusterId = feature.properties.cluster;
+    
+    if (!clusterMap.has(clusterId)) {
+      clusterMap.set(clusterId, []);
+    }
+    
+    clusterMap.get(clusterId).push({
+      stop_id: feature.properties.stop_id,
+      stop_name: feature.properties.stop_name,
+      stop_country: feature.properties.stop_country,
+      lat: feature.properties.lat,
+      lon: feature.properties.lon
     });
   });
   
-  // Second pass: create groups and individual stations
+  // Convert clusters to groups
   const groups = [];
   
-  Object.entries(baseNameGroups).forEach(([baseName, stations]) => {
-    // Don't group stations with generic base names
-    if (genericBaseNames.has(baseName)) {
-      stations.forEach(station => {
-        groups.push({
-          groupName: baseName,
-          displayName: station.stop_name,
-          isGroup: false,
-          stations: [station],
-          lat: station.lat,
-          lon: station.lon,
-          stop_country: station.stop_country
-        });
-      });
-      return;
-    }
-    
+  clusterMap.forEach((stations) => {
     if (stations.length === 1) {
-      // Single station - add as individual entry
+      // Single station cluster
       const station = stations[0];
       groups.push({
-        groupName: baseName,
+        groupName: station.stop_name,
         displayName: station.stop_name,
         isGroup: false,
         stations: [station],
@@ -193,141 +135,34 @@ export function groupStations(stops, maxDistance = 50) {
         stop_country: station.stop_country
       });
     } else {
-      // Multiple stations - check if they're close enough to group
-      let maxDist = 0;
-      let tooFarApart = false;
+      // Multi-station cluster - use longest common prefix as name
+      const stationNames = stations.map(s => s.stop_name);
+      let groupName = longestCommonPrefix(stationNames);
       
-      // Calculate maximum distance between any two stations
-      for (let i = 0; i < stations.length && !tooFarApart; i++) {
-        for (let j = i + 1; j < stations.length && !tooFarApart; j++) {
-          const dist = haversineDistance(
-            stations[i].lat, stations[i].lon,
-            stations[j].lat, stations[j].lon
-          );
-          maxDist = Math.max(maxDist, dist);
-          
-          // Early exit if we find stations that are too far apart
-          if (maxDist > maxDistance) {
-            tooFarApart = true;
-          }
-        }
+      // If the prefix is too short or empty, use a more meaningful name
+      if (!groupName || groupName.length < MIN_GROUP_NAME_LENGTH) {
+        // Use "Cluster" with a reference to one of the station names
+        const sortedNames = stationNames.slice().sort();
+        groupName = `Cluster (${sortedNames[0]}, ...)`;
       }
       
-      if (!tooFarApart && maxDist <= maxDistance) {
-        // Stations are close enough - create a group
-        // Calculate centroid
-        const avgLat = stations.reduce((sum, s) => sum + s.lat, 0) / stations.length;
-        const avgLon = stations.reduce((sum, s) => sum + s.lon, 0) / stations.length;
-        
-        groups.push({
-          groupName: baseName,
-          displayName: `${baseName} (${stations.length} stations)`,
-          isGroup: true,
-          stations: stations.sort((a, b) => a.stop_name.localeCompare(b.stop_name)),
-          lat: avgLat,
-          lon: avgLon,
-          stop_country: getMostCommonCountry(stations)
-        });
-      } else {
-        // Stations are too far apart - add individually
-        stations.forEach(station => {
-          groups.push({
-            groupName: baseName,
-            displayName: station.stop_name,
-            isGroup: false,
-            stations: [station],
-            lat: station.lat,
-            lon: station.lon,
-            stop_country: station.stop_country
-          });
-        });
-      }
-    }
-  });
-  
-  // Third pass: group stations by first word matching (within 25 km)
-  // This handles cases where base names differ but first words match
-  const firstWordMaxDistance = 25; // km
-  const firstWordGroups = {};
-  
-  // First, collect all individual stations (not already grouped) by their first word
-  groups.forEach((group, index) => {
-    if (group.isGroup) {
-      return; // Skip stations already grouped by base name
-    }
-    
-    const firstWord = extractFirstWord(group.displayName);
-    
-    // Skip generic first words
-    if (genericBaseNames.has(firstWord)) {
-      return;
-    }
-    
-    if (!firstWordGroups[firstWord]) {
-      firstWordGroups[firstWord] = [];
-    }
-    
-    firstWordGroups[firstWord].push({ group, index });
-  });
-  
-  // Now check each first word group for proximity
-  const newGroups = [];
-  const indicesToRemove = new Set();
-  
-  Object.entries(firstWordGroups).forEach(([firstWord, items]) => {
-    if (items.length < 2) {
-      return; // Need at least 2 stations to group
-    }
-    
-    // Check if all stations in this first word group are within 25km of each other
-    let maxDist = 0;
-    let canGroup = true;
-    
-    for (let i = 0; i < items.length && canGroup; i++) {
-      for (let j = i + 1; j < items.length && canGroup; j++) {
-        const dist = haversineDistance(
-          items[i].group.lat, items[i].group.lon,
-          items[j].group.lat, items[j].group.lon
-        );
-        maxDist = Math.max(maxDist, dist);
-        
-        if (maxDist > firstWordMaxDistance) {
-          canGroup = false;
-        }
-      }
-    }
-    
-    if (canGroup) {
-      // Create a new group with longest common prefix as the group name
-      const stationNames = items.map(item => item.group.displayName);
-      const commonPrefix = longestCommonPrefix(stationNames);
-      // Use common prefix if it's meaningful (not empty after trim), otherwise use first word
-      const groupName = (commonPrefix && commonPrefix.length > 0) ? commonPrefix : firstWord;
+      // Calculate centroid
+      const avgLat = stations.reduce((sum, s) => sum + s.lat, 0) / stations.length;
+      const avgLon = stations.reduce((sum, s) => sum + s.lon, 0) / stations.length;
       
-      const allStations = items.flatMap(item => item.group.stations);
-      const avgLat = allStations.reduce((sum, s) => sum + s.lat, 0) / allStations.length;
-      const avgLon = allStations.reduce((sum, s) => sum + s.lon, 0) / allStations.length;
-      
-      newGroups.push({
+      groups.push({
         groupName: groupName,
-        displayName: `${groupName} (${allStations.length} stations)`,
+        displayName: `${groupName} (${stations.length} stations)`,
         isGroup: true,
-        stations: allStations.sort((a, b) => a.stop_name.localeCompare(b.stop_name)),
+        stations: stations.sort((a, b) => a.stop_name.localeCompare(b.stop_name)),
         lat: avgLat,
         lon: avgLon,
-        stop_country: getMostCommonCountry(allStations)
+        stop_country: getMostCommonCountry(stations)
       });
-      
-      // Mark these indices for removal
-      items.forEach(item => indicesToRemove.add(item.index));
     }
   });
   
-  // Filter out the grouped stations and add the new groups
-  const finalGroups = groups.filter((_, index) => !indicesToRemove.has(index));
-  finalGroups.push(...newGroups);
-  
-  return finalGroups;
+  return groups;
 }
 
 /**
