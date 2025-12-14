@@ -7,8 +7,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import clustersDbscan from '@turf/clusters-dbscan';
-import { point, featureCollection } from '@turf/helpers';
+import distance from '@turf/distance';
+import { point } from '@turf/helpers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,10 +58,20 @@ function longestCommonPrefix(strings) {
 }
 
 /**
- * Group stations using DBSCAN clustering algorithm
- * This is the same logic as in webapp/src/utils/stationGrouping.js
+ * Calculate distance between two stations in kilometers
  */
-function groupStations(stops, maxDistance = 15) {
+function calculateDistance(station1, station2) {
+  const from = point([station1.lon, station1.lat]);
+  const to = point([station2.lon, station2.lat]);
+  return distance(from, to, { units: 'kilometers' });
+}
+
+/**
+ * Group stations using Complete Linkage clustering algorithm
+ * Complete Linkage ensures that the maximum distance between any two points
+ * in a cluster is at most the threshold distance.
+ */
+function groupStations(stops, maxDistance = 25) {
   const MIN_GROUP_NAME_LENGTH = 3;
   
   // Convert stops to array with coordinates
@@ -77,42 +87,100 @@ function groupStations(stops, maxDistance = 15) {
     };
   }).filter(stop => !isNaN(stop.lat) && !isNaN(stop.lon));
   
-  // Create GeoJSON FeatureCollection for DBSCAN
-  const features = stopsArray.map(stop => 
-    point([stop.lon, stop.lat], {
-      stop_id: stop.stop_id,
-      stop_name: stop.stop_name,
-      stop_country: stop.stop_country,
-      lat: stop.lat,
-      lon: stop.lon
-    })
-  );
+  console.log(`Processing ${stopsArray.length} valid stations...`);
   
-  const pointsCollection = featureCollection(features);
+  const n = stopsArray.length;
   
-  // Apply DBSCAN clustering
-  const clustered = clustersDbscan(pointsCollection, maxDistance, { minPoints: 1 });
+  // Build neighbor list for each station (only within maxDistance)
+  console.log('Building neighbor lists and merge queue...');
+  const mergeQueue = [];
   
-  // Group features by cluster ID
-  const clusterMap = new Map();
+  for (let i = 0; i < n; i++) {
+    if (i % 1000 === 0) {
+      console.log(`  Processed ${i}/${n} stations...`);
+    }
+    for (let j = i + 1; j < n; j++) {
+      const dist = calculateDistance(stopsArray[i], stopsArray[j]);
+      if (dist <= maxDistance) {
+        mergeQueue.push({ i, j, dist });
+      }
+    }
+  }
   
-  clustered.features.forEach(feature => {
-    const clusterId = feature.properties.cluster;
-    
-    if (!clusterMap.has(clusterId)) {
-      clusterMap.set(clusterId, []);
+  console.log(`Found ${mergeQueue.length} pairs within ${maxDistance}km`);
+  console.log('Sorting merge queue...');
+  mergeQueue.sort((a, b) => a.dist - b.dist);
+  
+  // Union-Find for cluster tracking
+  const parent = new Array(n).fill(0).map((_, i) => i);
+  const clusterStations = new Array(n).fill(null).map((_, i) => [i]);
+  
+  function find(x) {
+    if (parent[x] !== x) {
+      parent[x] = find(parent[x]);
+    }
+    return parent[x];
+  }
+  
+  // Process merges in order of increasing distance
+  console.log('Processing merges...');
+  let processed = 0;
+  let merged = 0;
+  
+  for (const { i, j } of mergeQueue) {
+    processed++;
+    if (processed % 10000 === 0) {
+      console.log(`  Processed ${processed}/${mergeQueue.length} merges (${merged} successful)...`);
     }
     
-    clusterMap.get(clusterId).push({
-      stop_id: feature.properties.stop_id,
-      stop_name: feature.properties.stop_name,
-      stop_country: feature.properties.stop_country,
-      lat: feature.properties.lat,
-      lon: feature.properties.lon
-    });
-  });
+    const rootI = find(i);
+    const rootJ = find(j);
+    
+    if (rootI === rootJ) continue; // Already in same cluster
+    
+    // Check complete linkage constraint: max distance between any two points
+    const stationsI = clusterStations[rootI];
+    const stationsJ = clusterStations[rootJ];
+    
+    let valid = true;
+    
+    for (const si of stationsI) {
+      if (!valid) break;
+      for (const sj of stationsJ) {
+        const d = calculateDistance(stopsArray[si], stopsArray[sj]);
+        if (d > maxDistance) {
+          valid = false;
+          break;
+        }
+      }
+    }
+    
+    // Merge if valid
+    if (valid) {
+      parent[rootJ] = rootI;
+      clusterStations[rootI] = stationsI.concat(stationsJ);
+      clusterStations[rootJ] = [];
+      merged++;
+    }
+  }
+  
+  console.log(`Completed processing. Merged ${merged} times.`);
+  
+  // Build final clusters
+  console.log('Building final clusters...');
+  const clusterMap = new Map();
+  for (let i = 0; i < n; i++) {
+    const root = find(i);
+    if (!clusterMap.has(root)) {
+      clusterMap.set(root, []);
+    }
+    clusterMap.get(root).push(stopsArray[i]);
+  }
+  
+  console.log(`Final number of clusters: ${clusterMap.size}`);
   
   // Convert clusters to groups
+  console.log('Converting clusters to groups...');
   const groups = [];
   
   clusterMap.forEach((stations) => {
@@ -187,7 +255,7 @@ try {
     ? join(__dirname, '..', 'public', 'data', 'station-groups.json')
     : join(__dirname, '..', '..', 'data', 'latest', 'station-groups.json');
   try {
-    writeFileSync(outputPath, JSON.stringify(groups, null, 2));
+    writeFileSync(outputPath, JSON.stringify(groups));
     console.log(`Station groups saved to ${outputPath}`);
   } catch (err) {
     console.error(`Failed to write station-groups.json to ${outputPath}:`, err.message);
