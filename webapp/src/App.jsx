@@ -23,12 +23,13 @@ function App() {
     }
     
     // Flatten all groups into individual stations
+    // Each station becomes its own "group" with the same structure as grouped items
     const flattenedStations = [];
     stationGroups.forEach(group => {
       group.stations.forEach(station => {
         flattenedStations.push({
-          groupName: station.stop_name,
-          displayName: station.stop_name,
+          groupName: station.stop_name,  // Used as unique identifier
+          displayName: station.stop_name,  // Used for display in UI
           isGroup: false,
           stations: [station],
           lat: station.lat,
