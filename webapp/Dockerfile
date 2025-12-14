@@ -18,6 +18,9 @@ COPY webapp/ ./
 RUN rm -f public/data
 COPY data/latest/ ./public/data/
 
+# Generate pre-computed station groups
+RUN node scripts/generate-station-groups.js
+
 # Build the application
 RUN npm run build
 
