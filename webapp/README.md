@@ -78,11 +78,22 @@ docker run -d -p 80:32516 --name night-train-map night-train-map
 
 ## Data Files
 
-The application uses three data files:
+The application uses the following data files:
 
-- `stops.json` - Station information with coordinates
+- `stops-filtered.json` - Filtered station information (only stations used by night trains)
+- `station-groups.json` - Pre-computed station groups for autocomplete
 - `trips.json` - Trip information
 - `trip_stop.json` - Mapping of trips to stations
+
+The application automatically filters stations on startup to only include those used by night trains. This reduces the station count from ~28,760 to ~615 stations, significantly improving performance.
+
+### Data Generation
+
+On startup (both `npm run dev` and `npm run build`), the `generate-station-groups.js` script automatically:
+1. Reads the original `stops.json` and `trip_stop.json`
+2. Filters stops to only those used by night trains
+3. Generates `stops-filtered.json` with filtered stations
+4. Generates `station-groups.json` with grouped stations
 
 These files are accessed via a symlink from `public/data/` to the repository's `data/latest/` directory. The webapp always uses the latest data without requiring any manual updates.
 
