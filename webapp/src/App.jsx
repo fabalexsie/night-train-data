@@ -14,6 +14,8 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [groupingEnabled, setGroupingEnabled] = useState(() => loadGroupingEnabled())
+  const [hoveredTripId, setHoveredTripId] = useState(null)
+  const [selectedTripId, setSelectedTripId] = useState(null)
   const isRestoredRef = useRef(false)
 
   // Flatten station groups into individual stations when grouping is disabled
@@ -105,6 +107,7 @@ function App() {
   useEffect(() => {
     if (selectedStationGroups.length === 0) {
       setFilteredTrips([])
+      setSelectedTripId(null) // Clear selection when no stations are selected
       return
     }
 
@@ -148,7 +151,12 @@ function App() {
 
     console.log(`Found ${matchingTrips.length} trips for ${selectedStationGroups.length} station group(s)`)
     setFilteredTrips(matchingTrips)
-  }, [selectedStationGroups, trips, tripStops])
+    
+    // Clear selection if the selected trip is no longer in the filtered results
+    if (selectedTripId && !matchingTrips.find(({ trip }) => trip.trip_id === selectedTripId)) {
+      setSelectedTripId(null)
+    }
+  }, [selectedStationGroups, trips, tripStops, selectedTripId])
 
   // Save selected station groups to localStorage whenever they change
   // Only save after initial restoration to avoid overwriting saved data
@@ -175,6 +183,14 @@ function App() {
 
   const handleToggleGrouping = () => {
     setGroupingEnabled(prev => !prev);
+  }
+
+  const handleTripHover = (tripId) => {
+    setHoveredTripId(tripId)
+  }
+
+  const handleTripClick = (tripId) => {
+    setSelectedTripId(tripId === selectedTripId ? null : tripId)
   }
 
   if (loading) {
@@ -210,12 +226,46 @@ function App() {
             {filteredTrips.length > 0 && (
               <div className="trip-list">
                 {filteredTrips.map(({ trip }) => (
-                  <div key={trip.trip_id} className="trip-item">
+                  <div 
+                    key={trip.trip_id} 
+                    className={`trip-item ${hoveredTripId === trip.trip_id ? 'hovered' : ''} ${selectedTripId === trip.trip_id ? 'selected' : ''}`}
+                    onMouseEnter={() => handleTripHover(trip.trip_id)}
+                    onMouseLeave={() => handleTripHover(null)}
+                    onClick={() => handleTripClick(trip.trip_id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleTripClick(trip.trip_id)
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={selectedTripId === trip.trip_id}
+                  >
                     <strong>{trip.trip_short_name}</strong>
                     <br />
                     {trip.trip_origin} → {trip.trip_headsign}
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {selectedTripId && filteredTrips.find(({ trip }) => trip.trip_id === selectedTripId) && (
+              <div className="selected-trip-stops">
+                <h4>Stops for selected trip:</h4>
+                <div className="stops-horizontal-scroll">
+                  {filteredTrips
+                    .find(({ trip }) => trip.trip_id === selectedTripId)
+                    .stops.map((ts, index) => {
+                      const stop = stops[ts.stop_id]
+                      return stop ? (
+                        <div key={ts.train_stop_id} className="stop-chip">
+                          <span className="stop-sequence">{index + 1}</span>
+                          <span className="stop-name">{stop.stop_name}</span>
+                        </div>
+                      ) : null
+                    })}
+                </div>
               </div>
             )}
           </div>
@@ -226,6 +276,9 @@ function App() {
             stops={stops}
             filteredTrips={filteredTrips}
             selectedStationGroups={selectedStationGroups}
+            hoveredTripId={hoveredTripId}
+            selectedTripId={selectedTripId}
+            onTripHover={handleTripHover}
           />
         </main>
       </div>

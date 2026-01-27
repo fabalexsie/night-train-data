@@ -89,10 +89,94 @@ body {
   margin-bottom: 0.5rem;
   border: 1px solid #e0e0e0;
   font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trip-item:hover,
+.trip-item.hovered,
+.trip-item:focus {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+  outline: none;
+}
+
+.trip-item.selected {
+  background: #f0f4ff;
+  border-color: #667eea;
+  box-shadow: 0 0 0 1px #667eea;
 }
 
 .trip-item strong {
   color: #667eea;
+}
+
+.selected-trip-stops {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.selected-trip-stops h4 {
+  color: #333;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.stops-horizontal-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: #667eea #f0f0f0;
+}
+
+.stops-horizontal-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.stops-horizontal-scroll::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.stops-horizontal-scroll::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 3px;
+}
+
+.stop-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.5rem;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.stop-sequence {
+  display: inline-block;
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.stop-name {
+  font-size: 0.75rem;
+  text-align: center;
+  color: #333;
+  line-height: 1.2;
 }
 
 .more-trips {
