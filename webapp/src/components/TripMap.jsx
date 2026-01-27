@@ -12,6 +12,33 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
+// Component for station popup content
+function StationPopupContent({ stop, trip, stopIndex, totalStops }) {
+  return (
+    <div className="stop-popup">
+      <strong>{stop.stop_name}</strong>
+      {stop.stop_country && <div>Country: {stop.stop_country}</div>}
+      <div style={{ marginTop: '0.5rem', color: '#666' }}>
+        {trip ? (
+          <>
+            <strong>{trip.trip_short_name}</strong>
+            <br />
+            {trip.trip_origin && trip.trip_headsign && (
+              <>
+                {trip.trip_origin} → {trip.trip_headsign}
+                <br />
+              </>
+            )}
+            Stop {stopIndex + 1} of {totalStops}
+          </>
+        ) : (
+          'Not on any displayed route'
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Component to fit map bounds when trips change
 function MapBoundsUpdater({ filteredTrips, stops }) {
   const map = useMap()
@@ -159,21 +186,12 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
                       position={[stop.stop_lat, stop.stop_lon]}
                     >
                       <Popup>
-                        <div className="stop-popup">
-                          <strong>{stop.stop_name}</strong>
-                          {stop.stop_country && <div>Country: {stop.stop_country}</div>}
-                          <div style={{ marginTop: '0.5rem', color: '#666' }}>
-                            <strong>{trip.trip_short_name}</strong>
-                            <br />
-                            {trip.trip_origin && trip.trip_headsign && (
-                              <>
-                                {trip.trip_origin} → {trip.trip_headsign}
-                                <br />
-                              </>
-                            )}
-                            Stop {stopIndex + 1} of {tripStops.length}
-                          </div>
-                        </div>
+                        <StationPopupContent 
+                          stop={stop} 
+                          trip={trip} 
+                          stopIndex={stopIndex} 
+                          totalStops={tripStops.length} 
+                        />
                       </Popup>
                     </Marker>
                   )
@@ -191,21 +209,12 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
                       }}
                     >
                       <Popup>
-                        <div className="stop-popup">
-                          <strong>{stop.stop_name}</strong>
-                          {stop.stop_country && <div>Country: {stop.stop_country}</div>}
-                          <div style={{ marginTop: '0.5rem', color: '#666' }}>
-                            <strong>{trip.trip_short_name}</strong>
-                            <br />
-                            {trip.trip_origin && trip.trip_headsign && (
-                              <>
-                                {trip.trip_origin} → {trip.trip_headsign}
-                                <br />
-                              </>
-                            )}
-                            Stop {stopIndex + 1} of {tripStops.length}
-                          </div>
-                        </div>
+                        <StationPopupContent 
+                          stop={stop} 
+                          trip={trip} 
+                          stopIndex={stopIndex} 
+                          totalStops={tripStops.length} 
+                        />
                       </Popup>
                     </CircleMarker>
                   )
@@ -222,13 +231,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
             position={[stop.stop_lat, stop.stop_lon]}
           >
             <Popup>
-              <div className="stop-popup">
-                <strong>{stop.stop_name}</strong>
-                {stop.stop_country && <div>Country: {stop.stop_country}</div>}
-                <div style={{ marginTop: '0.5rem', color: '#666' }}>
-                  Not on any displayed route
-                </div>
-              </div>
+              <StationPopupContent stop={stop} />
             </Popup>
           </Marker>
         ))}
