@@ -16,6 +16,7 @@ build/
 
 # Generated files
 data/latest/station-groups.json
+data/latest/stops-filtered.json
 
 # IDE
 .vscode/

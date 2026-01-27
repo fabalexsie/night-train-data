@@ -18,8 +18,11 @@ COPY webapp/ ./
 RUN rm -f public/data
 COPY data/latest/ ./public/data/
 
-# Generate pre-computed station groups
+# Generate pre-computed station groups and filtered stops
 RUN node scripts/generate-station-groups.js
+
+# Remove the original stops.json as we now use stops-filtered.json
+RUN rm -f public/data/stops.json
 
 # Build the application
 RUN npm run build

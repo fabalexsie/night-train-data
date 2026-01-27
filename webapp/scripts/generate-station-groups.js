@@ -2,6 +2,7 @@
 /**
  * Script to pre-compute station groups from stops.json
  * This runs during Docker build time to generate station-groups.json
+ * Filters stops to only include those used by night trains (from trip_stop.json)
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
@@ -250,9 +251,11 @@ try {
   console.log('Reading stops.json...');
   let runningInDocker = true;
   let stopsPath = join(__dirname, '..', 'public', 'data', 'stops.json');
+  let tripStopPath = join(__dirname, '..', 'public', 'data', 'trip_stop.json');
   if (!existsSync(stopsPath)) {
     runningInDocker = false;
     stopsPath = join(__dirname, '..', '..', 'data', 'latest', 'stops.json');
+    tripStopPath = join(__dirname, '..', '..', 'data', 'latest', 'trip_stop.json');
   }
   
   let stopsData;
@@ -265,16 +268,59 @@ try {
   
   console.log(`Loaded ${Object.keys(stopsData).length} stops`);
   
+  // Filter stops to only those used by night trains
+  console.log('Reading trip_stop.json...');
+  let tripStopData;
+  try {
+    tripStopData = JSON.parse(readFileSync(tripStopPath, 'utf-8'));
+  } catch (err) {
+    console.error(`Failed to read trip_stop.json from ${tripStopPath}:`, err.message);
+    process.exit(1);
+  }
+  
+  // Get unique stop IDs that are actually used by night trains
+  const usedStopIds = new Set();
+  Object.values(tripStopData).forEach(tripStop => {
+    if (tripStop.stop_id) {
+      usedStopIds.add(tripStop.stop_id);
+    }
+  });
+  
+  console.log(`Found ${usedStopIds.size} unique stops used by night trains`);
+  
+  // Filter stops to only include those used by night trains
+  const filteredStops = {};
+  Object.entries(stopsData).forEach(([stopId, stopData]) => {
+    if (usedStopIds.has(stopId)) {
+      filteredStops[stopId] = stopData;
+    }
+  });
+  
+  console.log(`Filtered from ${Object.keys(stopsData).length} to ${Object.keys(filteredStops).length} stops`);
+  
   console.log('Generating station groups...');
-  const groups = groupStations(stopsData);
+  const groups = groupStations(filteredStops);
   
   console.log(`Generated ${groups.length} station groups`);
+  
+  // Save filtered stops
+  const filteredStopsOutputPath = runningInDocker
+    ? join(__dirname, '..', 'public', 'data', 'stops-filtered.json')
+    : join(__dirname, '..', '..', 'data', 'latest', 'stops-filtered.json');
+  
+  try {
+    writeFileSync(filteredStopsOutputPath, JSON.stringify(filteredStops, null, 2));
+    console.log(`Filtered stops saved to ${filteredStopsOutputPath}`);
+  } catch (err) {
+    console.error(`Failed to write stops-filtered.json to ${filteredStopsOutputPath}:`, err.message);
+    process.exit(1);
+  }
   
   const outputPath = runningInDocker
     ? join(__dirname, '..', 'public', 'data', 'station-groups.json')
     : join(__dirname, '..', '..', 'data', 'latest', 'station-groups.json');
   try {
-    writeFileSync(outputPath, JSON.stringify(groups));
+    writeFileSync(outputPath, JSON.stringify(groups, null, 2));
     console.log(`Station groups saved to ${outputPath}`);
   } catch (err) {
     console.error(`Failed to write station-groups.json to ${outputPath}:`, err.message);
