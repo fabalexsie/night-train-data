@@ -62,7 +62,7 @@ function App() {
       try {
         setLoading(true)
         const [stopsRes, tripsRes, tripStopsRes, stationGroupsRes] = await Promise.all([
-          fetch('/data/stops.json'),
+          fetch('/data/stops-filtered.json'),
           fetch('/data/trips.json'),
           fetch('/data/trip_stop.json'),
           fetch('/data/station-groups.json')
