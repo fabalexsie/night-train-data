@@ -309,7 +309,7 @@ try {
     : join(__dirname, '..', '..', 'data', 'latest', 'stops-filtered.json');
   
   try {
-    writeFileSync(filteredStopsOutputPath, JSON.stringify(filteredStops));
+    writeFileSync(filteredStopsOutputPath, JSON.stringify(filteredStops, null, 2));
     console.log(`Filtered stops saved to ${filteredStopsOutputPath}`);
   } catch (err) {
     console.error(`Failed to write stops-filtered.json to ${filteredStopsOutputPath}:`, err.message);
@@ -320,7 +320,7 @@ try {
     ? join(__dirname, '..', 'public', 'data', 'station-groups.json')
     : join(__dirname, '..', '..', 'data', 'latest', 'station-groups.json');
   try {
-    writeFileSync(outputPath, JSON.stringify(groups));
+    writeFileSync(outputPath, JSON.stringify(groups, null, 2));
     console.log(`Station groups saved to ${outputPath}`);
   } catch (err) {
     console.error(`Failed to write station-groups.json to ${outputPath}:`, err.message);
