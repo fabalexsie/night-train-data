@@ -107,6 +107,7 @@ function App() {
   useEffect(() => {
     if (selectedStationGroups.length === 0) {
       setFilteredTrips([])
+      setSelectedTripId(null) // Clear selection when no stations are selected
       return
     }
 
@@ -150,7 +151,12 @@ function App() {
 
     console.log(`Found ${matchingTrips.length} trips for ${selectedStationGroups.length} station group(s)`)
     setFilteredTrips(matchingTrips)
-  }, [selectedStationGroups, trips, tripStops])
+    
+    // Clear selection if the selected trip is no longer in the filtered results
+    if (selectedTripId && !matchingTrips.find(({ trip }) => trip.trip_id === selectedTripId)) {
+      setSelectedTripId(null)
+    }
+  }, [selectedStationGroups, trips, tripStops, selectedTripId])
 
   // Save selected station groups to localStorage whenever they change
   // Only save after initial restoration to avoid overwriting saved data
@@ -226,6 +232,15 @@ function App() {
                     onMouseEnter={() => handleTripHover(trip.trip_id)}
                     onMouseLeave={() => handleTripHover(null)}
                     onClick={() => handleTripClick(trip.trip_id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleTripClick(trip.trip_id)
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={selectedTripId === trip.trip_id}
                   >
                     <strong>{trip.trip_short_name}</strong>
                     <br />
@@ -235,13 +250,13 @@ function App() {
               </div>
             )}
             
-            {selectedTripId && (
+            {selectedTripId && filteredTrips.find(({ trip }) => trip.trip_id === selectedTripId) && (
               <div className="selected-trip-stops">
                 <h4>Stops for selected trip:</h4>
                 <div className="stops-horizontal-scroll">
                   {filteredTrips
                     .find(({ trip }) => trip.trip_id === selectedTripId)
-                    ?.stops.map((ts, index) => {
+                    .stops.map((ts, index) => {
                       const stop = stops[ts.stop_id]
                       return stop ? (
                         <div key={ts.train_stop_id} className="stop-chip">

@@ -134,8 +134,8 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
 
           const color = getColorForTrip(index)
           const isHovered = hoveredTripId === trip.trip_id
-          const isSelected = selectedTripId === trip.trip_id
-          const isHighlighted = isHovered || isSelected
+          const isTripSelected = selectedTripId === trip.trip_id
+          const isHighlighted = isHovered || isTripSelected
 
           return (
             <div key={trip.trip_id}>

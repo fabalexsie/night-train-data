@@ -94,16 +94,18 @@ body {
 }
 
 .trip-item:hover,
-.trip-item.hovered {
+.trip-item.hovered,
+.trip-item:focus {
   border-color: #667eea;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
   transform: translateX(4px);
+  outline: none;
 }
 
 .trip-item.selected {
   background: #f0f4ff;
   border-color: #667eea;
-  border-width: 2px;
+  box-shadow: 0 0 0 1px #667eea;
 }
 
 .trip-item strong {
