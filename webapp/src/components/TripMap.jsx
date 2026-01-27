@@ -43,7 +43,7 @@ function MapBoundsUpdater({ filteredTrips, stops }) {
   return null
 }
 
-function TripMap({ stops, filteredTrips, selectedStationGroups }) {
+function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, selectedTripId, onTripHover }) {
   const mapRef = useRef(null)
 
   // Create a Set of selected station IDs for quick lookup
@@ -133,6 +133,9 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
           if (coordinates.length === 0) return null
 
           const color = getColorForTrip(index)
+          const isHovered = hoveredTripId === trip.trip_id
+          const isSelected = selectedTripId === trip.trip_id
+          const isHighlighted = isHovered || isSelected
 
           return (
             <div key={trip.trip_id}>
@@ -140,8 +143,12 @@ function TripMap({ stops, filteredTrips, selectedStationGroups }) {
               <Polyline
                 positions={coordinates}
                 color={color}
-                weight={3}
-                opacity={0.7}
+                weight={isHighlighted ? 5 : 3}
+                opacity={isHighlighted ? 1 : 0.7}
+                eventHandlers={{
+                  mouseover: () => onTripHover(trip.trip_id),
+                  mouseout: () => onTripHover(null)
+                }}
               />
 
               {/* Add markers for selected stops, circles for other stops */}
