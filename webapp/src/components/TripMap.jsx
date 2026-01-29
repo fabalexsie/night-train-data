@@ -73,6 +73,9 @@ function MapBoundsUpdater({ filteredTrips, stops }) {
 function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, selectedTripId, onTripHover }) {
   const mapRef = useRef(null)
 
+  // Check if any route is currently highlighted
+  const hasHighlightedRoute = hoveredTripId !== null || selectedTripId !== null
+
   // Create a Set of selected station IDs for quick lookup
   const selectedStationIds = useMemo(() => {
     const ids = new Set()
@@ -219,12 +222,14 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const isHighlighted = isHovered || isTripSelected
 
     // Determine visual properties based on highlight state
+    // Only desaturate if there is a highlighted route AND this route is not highlighted
     const baseColor = getColorForTrip(index)
-    const color = isHighlighted ? baseColor : desaturateColor(baseColor, 0.3)
+    const shouldDesaturate = hasHighlightedRoute && !isHighlighted
+    const color = shouldDesaturate ? desaturateColor(baseColor, 0.3) : baseColor
     const weight = isHighlighted ? 5 : 3
-    const opacity = isHighlighted ? 1 : 0.5
+    const opacity = shouldDesaturate ? 0.5 : (isHighlighted ? 1 : 0.8)
     const circleRadius = isHighlighted ? 5 : 4
-    const circleFillOpacity = isHighlighted ? 0.8 : 0.4
+    const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
 
     return (
       <div key={`${keyPrefix}${trip.trip_id}`}>
