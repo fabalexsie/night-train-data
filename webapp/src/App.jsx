@@ -279,6 +279,7 @@ function App() {
             hoveredTripId={hoveredTripId}
             selectedTripId={selectedTripId}
             onTripHover={handleTripHover}
+            onTripClick={handleTripClick}
           />
         </main>
       </div>
