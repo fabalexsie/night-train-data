@@ -7,6 +7,7 @@ A React single-page application for filtering and visualizing night train trips 
 - **Station Autocomplete**: Search and select stations using an autocomplete text input
 - **Trip Filtering**: Filter trips by selected stations - if at least one station matches, the complete trip is shown
 - **Interactive Map**: Display filtered trips on an interactive map with routes and station markers
+- **Metro-Style Route Organization**: Routes are automatically offset perpendicular to their direction to prevent overlap, similar to metro maps where multiple lines are shown side-by-side
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## Development
@@ -104,12 +105,41 @@ cd webapp/public
 ln -s ../../data/latest data
 ```
 
+## Route Organization
+
+The application uses the **Leaflet.PolylineOffset** plugin to organize multiple routes on the map in a metro-style layout. This prevents routes from overlapping and makes it easier to distinguish between different train lines.
+
+### How It Works
+
+When multiple routes are displayed:
+- Each route is automatically offset perpendicular to its direction
+- Routes are spread evenly around the original path
+- The offset distance is calculated based on the total number of routes and line weight
+- Routes maintain their visual properties (color, weight, opacity) while being offset
+
+This creates a visual effect similar to metro maps where multiple lines running parallel are shown side-by-side rather than on top of each other.
+
+### Technical Details
+
+The offset for each route is calculated using the formula:
+```javascript
+offset = index * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
+```
+
+Where:
+- `index` is the route's position in the filtered trips array
+- `lineSpacing` is the space between lines (line weight + 2 pixels)
+- `totalWidth` is the total width needed for all routes
+
+This ensures routes are centered around the original path and evenly distributed.
+
 ## Technology Stack
 
 - **React** - UI framework
 - **Vite** - Build tool and dev server
 - **Leaflet** - Interactive maps
 - **React Leaflet** - React components for Leaflet
+- **Leaflet.PolylineOffset** - Plugin for offsetting polylines to prevent route overlap
 - **Nginx** - Production web server (in Docker)
 
 ## License
