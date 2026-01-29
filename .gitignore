@@ -19,8 +19,6 @@ data/latest/station-groups.json
 data/latest/stops-filtered.json
 data/latest/routes-filtered.json
 data/latest/trips-filtered.json
-webapp/public/data/routes-filtered.json
-webapp/public/data/trips-filtered.json
 
 # IDE
 .vscode/
