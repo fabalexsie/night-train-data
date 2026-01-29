@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Script to combine identical routes that serve the same endpoints in both directions.
- * Simplified version that groups routes by their start and end cities.
+ * Script to combine identical routes that have the same stations in forward and backward order.
  * Both train names are kept when routes are combined.
+ * This runs during Docker build time to process routes.json and trips.json
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
@@ -35,95 +35,47 @@ function getStopsForTrip(tripId, tripStopsData) {
 }
 
 /**
- * Get endpoints (first and last stops) for all trips of a route
+ * Normalize station names for comparison
  */
-function getRouteEndpoints(routeId, trips, tripStops) {
-  const routeTrips = Object.entries(trips)
-    .filter(([tid, t]) => String(t.route_id) === String(routeId))
-    .map(([tid, t]) => tid);
-  
-  if (routeTrips.length === 0) {
-    return null;
-  }
-  
-  // Get stops for all trips
-  const tripStopsList = [];
-  for (const tripId of routeTrips) {
-    const stops = getStopsForTrip(tripId, tripStops);
-    if (stops && stops.length >= 2) {
-      tripStopsList.push({
-        tripId,
-        first: stops[0],
-        last: stops[stops.length - 1],
-        stops
-      });
-    }
-  }
-  
-  if (tripStopsList.length < 2) {
-    return null;
-  }
-  
-  // Get the unique endpoints (sorted to create a canonical form)
-  const endpointSet = new Set();
-  tripStopsList.forEach(t => {
-    endpointSet.add(t.first);
-    endpointSet.add(t.last);
-  });
-  
-  // For routes with exactly 2 unique endpoints, these are bidirectional routes
-  const endpoints = Array.from(endpointSet);
-  if (endpoints.length === 2) {
-    return {
-      endpoints: endpoints.sort(), // Canonical order
-      trips: tripStopsList
-    };
-  }
-  
-  return null;
+function normalizeStops(stops) {
+  return stops.map(stop => stop.trim());
 }
 
 /**
- * Find routes that serve the same two endpoints (bidirectional routes)
+ * Check if two stop lists are similar enough (Jaccard similarity)
  */
-function findDuplicateRoutes(routes, trips, tripStops) {
-  const endpointGroups = new Map();
+function stopsAreSimilar(stops1, stops2, threshold = 0.7) {
+  const set1 = new Set(normalizeStops(stops1));
+  const set2 = new Set(normalizeStops(stops2));
   
-  // Group routes by their endpoints
-  for (const [routeId, route] of Object.entries(routes)) {
-    const routeInfo = getRouteEndpoints(routeId, trips, tripStops);
-    
-    if (routeInfo) {
-      const key = routeInfo.endpoints.join(' <-> ');
-      
-      if (!endpointGroups.has(key)) {
-        endpointGroups.set(key, []);
-      }
-      
-      endpointGroups.get(key).push({
-        routeId,
-        route,
-        ...routeInfo
-      });
-    }
+  if (set1.size === 0 || set2.size === 0) {
+    return false;
   }
   
-  // Find groups with multiple routes
-  const routesToCombine = [];
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
   
-  for (const [endpointKey, routeList] of endpointGroups.entries()) {
-    if (routeList.length > 1) {
-      // Sort by route ID to ensure consistent primary route selection
-      routeList.sort((a, b) => parseInt(a.routeId) - parseInt(b.routeId));
-      
-      routesToCombine.push({
-        endpoints: endpointKey,
-        routes: routeList.map(r => r.routeId)
-      });
-    }
+  const similarity = intersection.size / union.size;
+  return similarity >= threshold;
+}
+
+/**
+ * Check if two routes are identical (same stations in forward/backward order)
+ */
+function areRoutesIdentical(route1Trips, route2Trips) {
+  if (route1Trips.length < 2 || route2Trips.length < 2) {
+    return false;
   }
   
-  return routesToCombine;
+  const r1Fwd = route1Trips[0].stops;
+  const r1Bwd = route1Trips[1].stops;
+  const r2Fwd = route2Trips[0].stops;
+  const r2Bwd = route2Trips[1].stops;
+  
+  const fwdMatch = stopsAreSimilar(r1Fwd, r2Fwd) || stopsAreSimilar(r1Fwd, r2Bwd);
+  const bwdMatch = stopsAreSimilar(r1Bwd, r2Bwd) || stopsAreSimilar(r1Bwd, r2Fwd);
+  
+  return fwdMatch && bwdMatch;
 }
 
 /**
@@ -149,6 +101,94 @@ function combineRouteNames(route1Name, route2Name) {
 }
 
 /**
+ * Find routes that should be combined (same endpoints, similar stops)
+ */
+function findDuplicateRoutes(routes, trips, tripStops) {
+  const routePatterns = new Map();
+  
+  for (const [routeId, route] of Object.entries(routes)) {
+    // Get all trips for this route
+    const routeTrips = Object.entries(trips)
+      .filter(([tid, t]) => String(t.route_id) === String(routeId))
+      .map(([tid, t]) => ({ tripId: tid, ...t }));
+    
+    if (routeTrips.length === 0) {
+      continue;
+    }
+    
+    // Get stops for each trip
+    const tripStopsList = [];
+    for (const trip of routeTrips) {
+      const stops = getStopsForTrip(trip.tripId, tripStops);
+      if (stops && stops.length > 1) {
+        tripStopsList.push({ tripId: trip.tripId, stops });
+      }
+    }
+    
+    if (tripStopsList.length >= 2) {
+      const trip1Stops = tripStopsList[0].stops;
+      const trip2Stops = tripStopsList[1].stops;
+      
+      // Create a pattern key based on endpoints (sorted for consistency)
+      const endpoints = [
+        [trip1Stops[0], trip1Stops[trip1Stops.length - 1]],
+        [trip2Stops[0], trip2Stops[trip2Stops.length - 1]]
+      ].sort((a, b) => {
+        const cmp1 = a[0].localeCompare(b[0]);
+        return cmp1 !== 0 ? cmp1 : a[1].localeCompare(b[1]);
+      });
+      
+      const endpointsKey = JSON.stringify(endpoints);
+      
+      if (!routePatterns.has(endpointsKey)) {
+        routePatterns.set(endpointsKey, []);
+      }
+      
+      routePatterns.get(endpointsKey).push({
+        routeId,
+        trips: tripStopsList,
+        route
+      });
+    }
+  }
+  
+  // Find routes with matching endpoints that should be combined
+  const routesToCombine = [];
+  
+  for (const [endpointsKey, routeList] of routePatterns.entries()) {
+    if (routeList.length <= 1) {
+      continue;
+    }
+    
+    // Group routes that are identical
+    const groups = [];
+    for (const routeInfo of routeList) {
+      let added = false;
+      for (const group of groups) {
+        if (areRoutesIdentical(routeInfo.trips, group[0].trips)) {
+          group.push(routeInfo);
+          added = true;
+          break;
+        }
+      }
+      
+      if (!added) {
+        groups.push([routeInfo]);
+      }
+    }
+    
+    // Add groups with more than one route to the combine list
+    for (const group of groups) {
+      if (group.length > 1) {
+        routesToCombine.push(group.map(r => r.routeId));
+      }
+    }
+  }
+  
+  return routesToCombine;
+}
+
+/**
  * Combine the identified duplicate routes
  */
 function combineRoutes(routes, trips, routesToCombine) {
@@ -156,35 +196,35 @@ function combineRoutes(routes, trips, routesToCombine) {
   const tripsCombined = { ...trips };
   const routesToDelete = new Set();
   
-  for (const group of routesToCombine) {
-    const routeIds = group.routes;
-    
-    if (routeIds.length < 2) {
+  for (const routeGroup of routesToCombine) {
+    if (routeGroup.length < 2) {
       continue;
     }
     
     // Keep the route with the lowest ID
-    const primaryRouteId = routeIds[0];
-    const otherRouteIds = routeIds.slice(1);
+    const primaryRouteId = routeGroup.reduce((min, rid) => 
+      parseInt(rid, 10) < parseInt(min, 10) ? rid : min
+    );
+    const otherRouteIds = routeGroup.filter(rid => rid !== primaryRouteId);
     
-    console.log(`\nCombining routes for ${group.endpoints}:`);
-    console.log(`  Primary: Route ${primaryRouteId} (${routesCombined[primaryRouteId].route_short_name})`);
+    console.log(`\nCombining routes: ${routeGroup.join(', ')} -> ${primaryRouteId}`);
     
     // Combine route names
-    let combinedName = routesCombined[primaryRouteId].route_short_name || '';
+    const primaryRoute = routesCombined[primaryRouteId];
+    let combinedName = primaryRoute.route_short_name || '';
     
     for (const otherId of otherRouteIds) {
       const otherRoute = routesCombined[otherId];
       const otherName = otherRoute.route_short_name || '';
       combinedName = combineRouteNames(combinedName, otherName);
       
-      console.log(`  + Route ${otherId} (${otherName})`);
+      console.log(`  ${otherRoute.route_short_name || ''} (Route ${otherId})`);
     }
     
     // Update the primary route with combined name
     routesCombined[primaryRouteId].route_short_name = combinedName;
     
-    console.log(`  -> Combined: ${combinedName}`);
+    console.log(`  -> Combined name: ${combinedName}`);
     
     // Update trips to point to primary route
     const otherIdsSet = new Set(otherRouteIds);
@@ -201,10 +241,7 @@ function combineRoutes(routes, trips, routesToCombine) {
   // Delete the redundant routes
   for (const routeId of routesToDelete) {
     delete routesCombined[routeId];
-  }
-  
-  if (routesToDelete.size > 0) {
-    console.log(`\nRemoved ${routesToDelete.size} duplicate routes`);
+    console.log(`Removed route ${routeId}`);
   }
   
   return { routes: routesCombined, trips: tripsCombined };
@@ -250,15 +287,19 @@ try {
   if (routesToCombine.length === 0) {
     console.log('No duplicate routes found.');
   } else {
-    console.log(`\nFound ${routesToCombine.length} endpoint pairs with multiple routes`);
+    console.log(`\nFound ${routesToCombine.length} groups of routes to combine:`);
+    for (const group of routesToCombine) {
+      const routeNames = group.map(rid => routes[rid].route_short_name || `Route ${rid}`);
+      console.log(`  ${routeNames.join(' + ')}`);
+    }
     
+    console.log('\nCombining routes...');
     const { routes: routesNew, trips: tripsNew } = combineRoutes(routes, trips, routesToCombine);
     
-    const removedCount = Object.keys(routes).length - Object.keys(routesNew).length;
-    console.log(`\nResult: ${Object.keys(routesNew).length} routes (combined ${removedCount} duplicates)`);
+    console.log(`\nAfter combining: ${Object.keys(routesNew).length} routes (removed ${Object.keys(routes).length - Object.keys(routesNew).length})`);
     
     // Save updated data
-    console.log('\nSaving filtered data...');
+    console.log('\nSaving updated data...');
     writeFileSync(routesOutputPath, JSON.stringify(routesNew, null, 2));
     console.log(`Routes saved to ${routesOutputPath}`);
     
