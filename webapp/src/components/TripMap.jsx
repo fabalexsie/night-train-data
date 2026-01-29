@@ -318,24 +318,32 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
         {filteredTrips.map(({ trip, stops: tripStops }, index) => {
           const isHovered = hoveredTripId === trip.trip_id
           const isTripSelected = selectedTripId === trip.trip_id
-          const isHighlighted = isHovered || isTripSelected
 
-          // Skip highlighted routes in this pass
-          if (isHighlighted) return null
+          // Skip selected or hovered routes in this pass
+          if (isHovered || isTripSelected) return null
 
           return renderTripRoute(trip, tripStops, index)
         })}
 
-        {/* Render highlighted routes last (top layer) */}
+        {/* Render selected routes (middle layer) */}
         {filteredTrips.map(({ trip, stops: tripStops }, index) => {
           const isHovered = hoveredTripId === trip.trip_id
           const isTripSelected = selectedTripId === trip.trip_id
-          const isHighlighted = isHovered || isTripSelected
 
-          // Only render highlighted routes in this pass
-          if (!isHighlighted) return null
+          // Only render selected but not hovered routes in this pass
+          if (!isTripSelected || isHovered) return null
 
-          return renderTripRoute(trip, tripStops, index, 'highlighted-')
+          return renderTripRoute(trip, tripStops, index, 'selected-')
+        })}
+
+        {/* Render hovered routes last (top layer) */}
+        {filteredTrips.map(({ trip, stops: tripStops }, index) => {
+          const isHovered = hoveredTripId === trip.trip_id
+
+          // Only render hovered routes in this pass
+          if (!isHovered) return null
+
+          return renderTripRoute(trip, tripStops, index, 'hovered-')
         })}
 
         {/* Add markers for selected stations not on any route */}
