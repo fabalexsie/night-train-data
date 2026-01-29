@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import StationAutocomplete from './components/StationAutocomplete'
 import TripMap from './components/TripMap'
+import TabPanel from './components/TabPanel'
 import { saveSelectedStationGroups, loadSelectedStationGroups, loadGroupingEnabled, saveGroupingEnabled } from './utils/localStorage'
 import './App.css'
 
@@ -16,7 +17,9 @@ function App() {
   const [groupingEnabled, setGroupingEnabled] = useState(() => loadGroupingEnabled())
   const [hoveredTripId, setHoveredTripId] = useState(null)
   const [selectedTripId, setSelectedTripId] = useState(null)
+  const [activeTab, setActiveTab] = useState(0)
   const isRestoredRef = useRef(false)
+  const tripRefs = useRef({})
 
   // Flatten station groups into individual stations when grouping is disabled
   const displayStationGroups = useMemo(() => {
@@ -190,7 +193,22 @@ function App() {
   }
 
   const handleTripClick = (tripId) => {
-    setSelectedTripId(tripId === selectedTripId ? null : tripId)
+    const newTripId = tripId === selectedTripId ? null : tripId
+    setSelectedTripId(newTripId)
+    
+    // Switch to Filtered Trips tab and scroll the trip into view if it's being selected
+    if (newTripId) {
+      setActiveTab(1) // Switch to Filtered Trips tab (index 1)
+      // Use setTimeout to ensure the tab has switched and the element is rendered
+      setTimeout(() => {
+        if (tripRefs.current[newTripId]) {
+          tripRefs.current[newTripId].scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          })
+        }
+      }, 100)
+    }
   }
 
   if (loading) {
@@ -210,65 +228,87 @@ function App() {
       
       <div className="app-content">
         <aside className="sidebar">
-          <StationAutocomplete 
-            stationGroups={displayStationGroups}
-            selectedGroups={selectedStationGroups}
-            onGroupAdd={handleStationGroupAdd}
-            onGroupRemove={handleStationGroupRemove}
-            groupingEnabled={groupingEnabled}
-            onToggleGrouping={handleToggleGrouping}
-          />
-          
-          <div className="trip-info">
-            <h3>Filtered Trips</h3>
-            <p>{filteredTrips.length} trip(s) found</p>
-            
-            {filteredTrips.length > 0 && (
-              <div className="trip-list">
-                {filteredTrips.map(({ trip }) => (
-                  <div 
-                    key={trip.trip_id} 
-                    className={`trip-item ${hoveredTripId === trip.trip_id ? 'hovered' : ''} ${selectedTripId === trip.trip_id ? 'selected' : ''}`}
-                    onMouseEnter={() => handleTripHover(trip.trip_id)}
-                    onMouseLeave={() => handleTripHover(null)}
-                    onClick={() => handleTripClick(trip.trip_id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleTripClick(trip.trip_id)
-                      }
-                    }}
-                    tabIndex={0}
-                    role="button"
-                    aria-pressed={selectedTripId === trip.trip_id}
-                  >
-                    <strong>{trip.trip_short_name}</strong>
-                    <br />
-                    {trip.trip_origin} → {trip.trip_headsign}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {selectedTripId && filteredTrips.find(({ trip }) => trip.trip_id === selectedTripId) && (
-              <div className="selected-trip-stops">
-                <h4>Stops for selected trip:</h4>
-                <div className="stops-horizontal-scroll">
-                  {filteredTrips
-                    .find(({ trip }) => trip.trip_id === selectedTripId)
-                    .stops.map((ts, index) => {
-                      const stop = stops[ts.stop_id]
-                      return stop ? (
-                        <div key={ts.train_stop_id} className="stop-chip">
-                          <span className="stop-sequence">{index + 1}</span>
-                          <span className="stop-name">{stop.stop_name}</span>
+          <TabPanel 
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={[
+              {
+                label: 'Selected Stations',
+                content: (
+                  <StationAutocomplete 
+                    stationGroups={displayStationGroups}
+                    selectedGroups={selectedStationGroups}
+                    onGroupAdd={handleStationGroupAdd}
+                    onGroupRemove={handleStationGroupRemove}
+                    groupingEnabled={groupingEnabled}
+                    onToggleGrouping={handleToggleGrouping}
+                  />
+                )
+              },
+              {
+                label: 'Filtered Trips',
+                content: (
+                  <div className="trip-info">
+                    <h3>Filtered Trips</h3>
+                    <p>{filteredTrips.length} trip(s) found</p>
+                    
+                    {filteredTrips.length > 0 && (
+                      <div className="trip-list">
+                        {filteredTrips.map(({ trip }) => (
+                          <div 
+                            key={trip.trip_id}
+                            ref={(el) => {
+                              if (el) {
+                                tripRefs.current[trip.trip_id] = el
+                              } else {
+                                delete tripRefs.current[trip.trip_id]
+                              }
+                            }}
+                            className={`trip-item ${hoveredTripId === trip.trip_id ? 'hovered' : ''} ${selectedTripId === trip.trip_id ? 'selected' : ''}`}
+                            onMouseEnter={() => handleTripHover(trip.trip_id)}
+                            onMouseLeave={() => handleTripHover(null)}
+                            onClick={() => handleTripClick(trip.trip_id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                handleTripClick(trip.trip_id)
+                              }
+                            }}
+                            tabIndex={0}
+                            role="button"
+                            aria-pressed={selectedTripId === trip.trip_id}
+                          >
+                            <strong>{trip.trip_short_name}</strong>
+                            <br />
+                            {trip.trip_origin} → {trip.trip_headsign}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {selectedTripId && filteredTrips.find(({ trip }) => trip.trip_id === selectedTripId) && (
+                      <div className="selected-trip-stops">
+                        <h4>Stops for selected trip:</h4>
+                        <div className="stops-horizontal-scroll">
+                          {filteredTrips
+                            .find(({ trip }) => trip.trip_id === selectedTripId)
+                            .stops.map((ts, index) => {
+                              const stop = stops[ts.stop_id]
+                              return stop ? (
+                                <div key={ts.train_stop_id} className="stop-chip">
+                                  <span className="stop-sequence">{index + 1}</span>
+                                  <span className="stop-name">{stop.stop_name}</span>
+                                </div>
+                              ) : null
+                            })}
                         </div>
-                      ) : null
-                    })}
-                </div>
-              </div>
-            )}
-          </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+            ]}
+          />
         </aside>
 
         <main className="map-container">
