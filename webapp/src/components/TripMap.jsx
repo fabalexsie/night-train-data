@@ -130,6 +130,169 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     return colors[index % colors.length]
   }
 
+  // Convert hex color to HSL, reduce saturation, and convert back to hex
+  const desaturateColor = (hexColor, saturationFactor = 0.3) => {
+    // Convert hex to RGB
+    const r = parseInt(hexColor.slice(1, 3), 16)
+    const g = parseInt(hexColor.slice(3, 5), 16)
+    const b = parseInt(hexColor.slice(5, 7), 16)
+    
+    // Convert RGB to HSL
+    const rNorm = r / 255
+    const gNorm = g / 255
+    const bNorm = b / 255
+    
+    const max = Math.max(rNorm, gNorm, bNorm)
+    const min = Math.min(rNorm, gNorm, bNorm)
+    const l = (max + min) / 2
+    
+    let h = 0
+    let s = 0
+    
+    if (max !== min) {
+      const d = max - min
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+      
+      switch (max) {
+        case rNorm:
+          h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6
+          break
+        case gNorm:
+          h = ((bNorm - rNorm) / d + 2) / 6
+          break
+        case bNorm:
+          h = ((rNorm - gNorm) / d + 4) / 6
+          break
+      }
+    }
+    
+    // Reduce saturation
+    s = s * saturationFactor
+    
+    // Convert HSL back to RGB
+    const hueToRgb = (p, q, t) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1 / 6) return p + (q - p) * 6 * t
+      if (t < 1 / 2) return q
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+      return p
+    }
+    
+    let rOut, gOut, bOut
+    if (s === 0) {
+      rOut = gOut = bOut = l
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+      const p = 2 * l - q
+      rOut = hueToRgb(p, q, h + 1 / 3)
+      gOut = hueToRgb(p, q, h)
+      bOut = hueToRgb(p, q, h - 1 / 3)
+    }
+    
+    // Convert back to hex
+    const toHex = (x) => {
+      const hex = Math.round(x * 255).toString(16)
+      return hex.length === 1 ? '0' + hex : hex
+    }
+    
+    return `#${toHex(rOut)}${toHex(gOut)}${toHex(bOut)}`
+  }
+
+  // Helper function to render a single trip route with its stops
+  const renderTripRoute = (trip, tripStops, index, keyPrefix = '') => {
+    // Get coordinates for all stops in this trip
+    const coordinates = tripStops
+      .map(ts => {
+        const stop = stops[ts.stop_id]
+        if (stop && stop.stop_lat && stop.stop_lon) {
+          return [stop.stop_lat, stop.stop_lon]
+        }
+        return null
+      })
+      .filter(coord => coord !== null)
+
+    if (coordinates.length === 0) return null
+
+    const isHovered = hoveredTripId === trip.trip_id
+    const isTripSelected = selectedTripId === trip.trip_id
+    const isHighlighted = isHovered || isTripSelected
+
+    // Determine visual properties based on highlight state
+    const baseColor = getColorForTrip(index)
+    const color = isHighlighted ? baseColor : desaturateColor(baseColor, 0.3)
+    const weight = isHighlighted ? 5 : 3
+    const opacity = isHighlighted ? 1 : 0.5
+    const circleRadius = isHighlighted ? 5 : 4
+    const circleFillOpacity = isHighlighted ? 0.8 : 0.4
+
+    return (
+      <div key={`${keyPrefix}${trip.trip_id}`}>
+        {/* Draw the route line */}
+        <Polyline
+          positions={coordinates}
+          color={color}
+          weight={weight}
+          opacity={opacity}
+          eventHandlers={{
+            mouseover: () => onTripHover(trip.trip_id),
+            mouseout: () => onTripHover(null)
+          }}
+        />
+
+        {/* Add markers for selected stops, circles for other stops */}
+        {tripStops.map((ts, stopIndex) => {
+          const stop = stops[ts.stop_id]
+          if (!stop || !stop.stop_lat || !stop.stop_lon) return null
+
+          const isSelected = selectedStationIds.has(ts.stop_id)
+
+          // Use Marker for selected stations, CircleMarker for others
+          if (isSelected) {
+            return (
+              <Marker
+                key={`${keyPrefix}${ts.train_stop_id}`}
+                position={[stop.stop_lat, stop.stop_lon]}
+              >
+                <Popup>
+                  <StationPopupContent 
+                    stop={stop} 
+                    trip={trip} 
+                    stopIndex={stopIndex} 
+                    totalStops={tripStops.length} 
+                  />
+                </Popup>
+              </Marker>
+            )
+          } else {
+            return (
+              <CircleMarker
+                key={`${keyPrefix}${ts.train_stop_id}`}
+                center={[stop.stop_lat, stop.stop_lon]}
+                radius={circleRadius}
+                pathOptions={{
+                  fillColor: color,
+                  fillOpacity: circleFillOpacity,
+                  color: color,
+                  weight: isHighlighted ? 2 : 1
+                }}
+              >
+                <Popup>
+                  <StationPopupContent 
+                    stop={stop} 
+                    trip={trip} 
+                    stopIndex={stopIndex} 
+                    totalStops={tripStops.length} 
+                  />
+                </Popup>
+              </CircleMarker>
+            )
+          }
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="trip-map">
       <MapContainer
@@ -145,90 +308,28 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
 
         <MapBoundsUpdater filteredTrips={filteredTrips} stops={stops} />
 
+        {/* Render non-highlighted routes first (bottom layer) */}
         {filteredTrips.map(({ trip, stops: tripStops }, index) => {
-          // Get coordinates for all stops in this trip
-          const coordinates = tripStops
-            .map(ts => {
-              const stop = stops[ts.stop_id]
-              if (stop && stop.stop_lat && stop.stop_lon) {
-                return [stop.stop_lat, stop.stop_lon]
-              }
-              return null
-            })
-            .filter(coord => coord !== null)
-
-          if (coordinates.length === 0) return null
-
-          const color = getColorForTrip(index)
           const isHovered = hoveredTripId === trip.trip_id
           const isTripSelected = selectedTripId === trip.trip_id
           const isHighlighted = isHovered || isTripSelected
 
-          return (
-            <div key={trip.trip_id}>
-              {/* Draw the route line */}
-              <Polyline
-                positions={coordinates}
-                color={color}
-                weight={isHighlighted ? 5 : 3}
-                opacity={isHighlighted ? 1 : 0.7}
-                eventHandlers={{
-                  mouseover: () => onTripHover(trip.trip_id),
-                  mouseout: () => onTripHover(null)
-                }}
-              />
+          // Skip highlighted routes in this pass
+          if (isHighlighted) return null
 
-              {/* Add markers for selected stops, circles for other stops */}
-              {tripStops.map((ts, stopIndex) => {
-                const stop = stops[ts.stop_id]
-                if (!stop || !stop.stop_lat || !stop.stop_lon) return null
+          return renderTripRoute(trip, tripStops, index)
+        })}
 
-                const isSelected = selectedStationIds.has(ts.stop_id)
+        {/* Render highlighted routes last (top layer) */}
+        {filteredTrips.map(({ trip, stops: tripStops }, index) => {
+          const isHovered = hoveredTripId === trip.trip_id
+          const isTripSelected = selectedTripId === trip.trip_id
+          const isHighlighted = isHovered || isTripSelected
 
-                // Use Marker for selected stations, CircleMarker for others
-                if (isSelected) {
-                  return (
-                    <Marker
-                      key={ts.train_stop_id}
-                      position={[stop.stop_lat, stop.stop_lon]}
-                    >
-                      <Popup>
-                        <StationPopupContent 
-                          stop={stop} 
-                          trip={trip} 
-                          stopIndex={stopIndex} 
-                          totalStops={tripStops.length} 
-                        />
-                      </Popup>
-                    </Marker>
-                  )
-                } else {
-                  return (
-                    <CircleMarker
-                      key={ts.train_stop_id}
-                      center={[stop.stop_lat, stop.stop_lon]}
-                      radius={4}
-                      pathOptions={{
-                        fillColor: color,
-                        fillOpacity: 0.6,
-                        color: color,
-                        weight: 1
-                      }}
-                    >
-                      <Popup>
-                        <StationPopupContent 
-                          stop={stop} 
-                          trip={trip} 
-                          stopIndex={stopIndex} 
-                          totalStops={tripStops.length} 
-                        />
-                      </Popup>
-                    </CircleMarker>
-                  )
-                }
-              })}
-            </div>
-          )
+          // Only render highlighted routes in this pass
+          if (!isHighlighted) return null
+
+          return renderTripRoute(trip, tripStops, index, 'highlighted-')
         })}
 
         {/* Add markers for selected stations not on any route */}
