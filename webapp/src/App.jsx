@@ -17,6 +17,7 @@ function App() {
   const [groupingEnabled, setGroupingEnabled] = useState(() => loadGroupingEnabled())
   const [hoveredTripId, setHoveredTripId] = useState(null)
   const [selectedTripId, setSelectedTripId] = useState(null)
+  const [activeTab, setActiveTab] = useState(0)
   const isRestoredRef = useRef(false)
   const tripRefs = useRef({})
 
@@ -195,12 +196,18 @@ function App() {
     const newTripId = tripId === selectedTripId ? null : tripId
     setSelectedTripId(newTripId)
     
-    // Scroll the trip into view if it's being selected
-    if (newTripId && tripRefs.current[newTripId]) {
-      tripRefs.current[newTripId].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
-      })
+    // Switch to Filtered Trips tab and scroll the trip into view if it's being selected
+    if (newTripId) {
+      setActiveTab(1) // Switch to Filtered Trips tab (index 1)
+      // Use setTimeout to ensure the tab has switched and the element is rendered
+      setTimeout(() => {
+        if (tripRefs.current[newTripId]) {
+          tripRefs.current[newTripId].scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          })
+        }
+      }, 100)
     }
   }
 
@@ -222,7 +229,8 @@ function App() {
       <div className="app-content">
         <aside className="sidebar">
           <TabPanel 
-            defaultTab={0}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
             tabs={[
               {
                 label: 'Selected Stations',
@@ -252,6 +260,8 @@ function App() {
                             ref={(el) => {
                               if (el) {
                                 tripRefs.current[trip.trip_id] = el
+                              } else {
+                                delete tripRefs.current[trip.trip_id]
                               }
                             }}
                             className={`trip-item ${hoveredTripId === trip.trip_id ? 'hovered' : ''} ${selectedTripId === trip.trip_id ? 'selected' : ''}`}
