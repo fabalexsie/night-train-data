@@ -75,11 +75,15 @@ def test_combined_routes():
         route_trips = {tid: t for tid, t in trips.items() 
                       if str(t['route_id']) == route_id}
         
-        if len(route_trips) >= len(expected_names):
-            print(f"  ✓ Route {route_id} has {len(route_trips)} trips (expected >= {len(expected_names)})")
+        # Check that we have at least as many trips as train names
+        # (each combined route should have 2 trips per train name - forward and backward)
+        expected_min_trips = len(expected_names)
+        
+        if len(route_trips) == expected_min_trips:
+            print(f"  ✓ Route {route_id} has {len(route_trips)} trips (expected {expected_min_trips})")
             passed += 1
         else:
-            print(f"  ✗ Route {route_id} has only {len(route_trips)} trips (expected >= {len(expected_names)})")
+            print(f"  ✗ Route {route_id} has {len(route_trips)} trips (expected {expected_min_trips})")
             failed += 1
     
     # Test 4: Check that no trips reference deleted routes

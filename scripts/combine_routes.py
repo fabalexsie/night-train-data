@@ -9,14 +9,14 @@ import json
 import sys
 from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple
 
 
 def get_stops_for_trip(trip_id: str, trip_stops_data: Dict) -> List[str]:
     """Get ordered list of stop IDs for a trip."""
     stops = []
     for ts_id, ts in trip_stops_data.items():
-        if ts['trip_id'] == trip_id:
+        if str(ts['trip_id']) == str(trip_id):
             seq = ts.get('stop_sequence', 0)
             try:
                 seq = int(seq) if seq != '' and seq is not None else 0
@@ -177,14 +177,13 @@ def find_duplicate_routes(routes: Dict, trips: Dict, trip_stops: Dict) -> List[L
 
 
 def combine_routes(routes: Dict, trips: Dict, trip_stops: Dict, 
-                   routes_to_combine: List[List[str]]) -> Tuple[Dict, Dict, Dict]:
+                   routes_to_combine: List[List[str]]) -> Tuple[Dict, Dict]:
     """
     Combine the identified duplicate routes.
-    Keep the first route and merge data from others into it.
+    Keep the route with the lowest ID and merge data from others into it.
     """
     routes_combined = routes.copy()
     trips_combined = trips.copy()
-    trip_stops_combined = trip_stops.copy()
     
     routes_to_delete = set()
     
@@ -214,21 +213,21 @@ def combine_routes(routes: Dict, trips: Dict, trip_stops: Dict,
         
         print(f"  -> Combined name: {combined_name}")
         
-        # Update trips to point to primary route
-        for other_id in other_route_ids:
-            for trip_id, trip in trips_combined.items():
-                if str(trip['route_id']) == str(other_id):
-                    trips_combined[trip_id]['route_id'] = int(primary_route_id)
-            
-            # Mark other routes for deletion
-            routes_to_delete.add(other_id)
+        # Update trips to point to primary route (optimized single pass)
+        other_ids_set = set(other_route_ids)
+        for trip_id, trip in trips_combined.items():
+            if str(trip['route_id']) in other_ids_set:
+                trips_combined[trip_id]['route_id'] = int(primary_route_id)
+        
+        # Mark other routes for deletion
+        routes_to_delete.update(other_route_ids)
     
     # Delete the redundant routes
     for route_id in routes_to_delete:
         del routes_combined[route_id]
         print(f"Removed route {route_id}")
     
-    return routes_combined, trips_combined, trip_stops_combined
+    return routes_combined, trips_combined
 
 
 def main():
@@ -273,7 +272,7 @@ def main():
     
     # Combine routes
     print("\nCombining routes...")
-    routes_new, trips_new, trip_stops_new = combine_routes(
+    routes_new, trips_new = combine_routes(
         routes, trips, trip_stops, routes_to_combine
     )
     
@@ -285,9 +284,6 @@ def main():
         json.dump(routes_new, f, indent=2, ensure_ascii=False)
     with open(trips_path, 'w') as f:
         json.dump(trips_new, f, indent=2, ensure_ascii=False)
-    
-    # trip_stops doesn't need to be saved unless it was modified
-    # (in this case, it's not modified)
     
     print("Done!")
     return 0
