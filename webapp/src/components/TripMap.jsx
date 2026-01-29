@@ -70,7 +70,7 @@ function MapBoundsUpdater({ filteredTrips, stops }) {
   return null
 }
 
-function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, selectedTripId, onTripHover }) {
+function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, selectedTripId, onTripHover, onTripClick }) {
   const mapRef = useRef(null)
 
   // Check if any route is currently highlighted
@@ -241,7 +241,8 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
           opacity={opacity}
           eventHandlers={{
             mouseover: () => onTripHover(trip.trip_id),
-            mouseout: () => onTripHover(null)
+            mouseout: () => onTripHover(null),
+            click: () => onTripClick && onTripClick(trip.trip_id)
           }}
         />
 
