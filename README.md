@@ -39,6 +39,10 @@ The repository includes automated preprocessing scripts that run during the weba
 
 These scripts automatically run during `npm run build` or `npm run dev` in the webapp directory, ensuring the data is always processed consistently.
 
+### Route Variations
+
+Some night train routes take different paths in each direction (e.g., ÖBB Nightjet Amsterdam-Wien via Hannover eastbound, via Hamm/Münster westbound). This is intentional and reflects real-world train operations. See [Route Variations Documentation](./docs/ROUTE_VARIATIONS.md) for details.
+
 ## How to update the data held in this repository
 There are several options for updating the data
 1. For developers (mainly): If you are using git locally you can get update with this python script - [get_snapshot.py](./scripts/get_snapshot.py) which uses the currently hosted version of the script. Then create a pull request with the new files and they will get merged when approved, or if youv'e got the permissions and feeling brave, just commit.
