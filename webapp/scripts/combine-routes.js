@@ -35,9 +35,26 @@ function getStopsForTrip(tripId, tripStopsData) {
 }
 
 /**
- * Get endpoints (first and last stops) for all trips of a route
+ * Check if two station sequences are the reverse of each other
  */
-function getRouteEndpoints(routeId, trips, tripStops) {
+function areStopsReversed(stops1, stops2) {
+  if (stops1.length !== stops2.length) {
+    return false;
+  }
+  
+  for (let i = 0; i < stops1.length; i++) {
+    if (stops1[i] !== stops2[stops2.length - 1 - i]) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Get all trips with their stop sequences for a route
+ */
+function getRouteTripStops(routeId, trips, tripStops) {
   const routeTrips = Object.entries(trips)
     .filter(([tid, t]) => String(t.route_id) === String(routeId))
     .map(([tid, t]) => tid);
@@ -53,77 +70,119 @@ function getRouteEndpoints(routeId, trips, tripStops) {
     if (stops && stops.length >= 2) {
       tripStopsList.push({
         tripId,
-        first: stops[0],
-        last: stops[stops.length - 1],
         stops
       });
     }
   }
   
-  if (tripStopsList.length < 2) {
-    return null;
-  }
-  
-  // Get the unique endpoints (sorted to create a canonical form)
-  const endpointSet = new Set();
-  tripStopsList.forEach(t => {
-    endpointSet.add(t.first);
-    endpointSet.add(t.last);
-  });
-  
-  // For routes with exactly 2 unique endpoints, these are bidirectional routes
-  const endpoints = Array.from(endpointSet);
-  if (endpoints.length === 2) {
-    return {
-      endpoints: endpoints.sort(), // Canonical order
-      trips: tripStopsList
-    };
-  }
-  
-  return null;
+  return tripStopsList.length >= 2 ? tripStopsList : null;
 }
 
 /**
- * Find routes that serve the same two endpoints (bidirectional routes)
+ * Check if two routes are identical (same stops in forward/backward order)
+ * A route with trips A-B-C-D-E and E-D-C-B-A should match another route
+ * with the same pattern
+ */
+function areRoutesIdentical(route1Trips, route2Trips) {
+  if (!route1Trips || !route2Trips) {
+    return false;
+  }
+  
+  // For each trip in route1, check if there's a matching reversed trip in route2
+  for (const trip1 of route1Trips) {
+    let foundMatch = false;
+    
+    for (const trip2 of route2Trips) {
+      if (areStopsReversed(trip1.stops, trip2.stops)) {
+        foundMatch = true;
+        break;
+      }
+    }
+    
+    if (!foundMatch) {
+      return false;
+    }
+  }
+  
+  // Also check the reverse: each trip in route2 should have a match in route1
+  for (const trip2 of route2Trips) {
+    let foundMatch = false;
+    
+    for (const trip1 of route1Trips) {
+      if (areStopsReversed(trip1.stops, trip2.stops)) {
+        foundMatch = true;
+        break;
+      }
+    }
+    
+    if (!foundMatch) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Find routes that have identical station sequences (forward/backward)
  */
 function findDuplicateRoutes(routes, trips, tripStops) {
-  const endpointGroups = new Map();
+  const allRoutes = [];
   
-  // Group routes by their endpoints
+  // Get trip stops for all routes
   for (const [routeId, route] of Object.entries(routes)) {
-    const routeInfo = getRouteEndpoints(routeId, trips, tripStops);
+    const tripStopsList = getRouteTripStops(routeId, trips, tripStops);
     
-    if (routeInfo) {
-      const key = routeInfo.endpoints.join(' <-> ');
-      
-      if (!endpointGroups.has(key)) {
-        endpointGroups.set(key, []);
-      }
-      
-      endpointGroups.get(key).push({
+    if (tripStopsList) {
+      allRoutes.push({
         routeId,
         route,
-        ...routeInfo
+        trips: tripStopsList
       });
     }
   }
   
-  // Find groups with multiple routes
-  const routesToCombine = [];
+  // Find groups of identical routes
+  const routeGroups = [];
+  const processed = new Set();
   
-  for (const [endpointKey, routeList] of endpointGroups.entries()) {
-    if (routeList.length > 1) {
-      // Sort by route ID to ensure consistent primary route selection
-      routeList.sort((a, b) => parseInt(a.routeId) - parseInt(b.routeId));
+  for (let i = 0; i < allRoutes.length; i++) {
+    if (processed.has(allRoutes[i].routeId)) {
+      continue;
+    }
+    
+    const group = [allRoutes[i]];
+    processed.add(allRoutes[i].routeId);
+    
+    // Find all other routes that are identical to this one
+    for (let j = i + 1; j < allRoutes.length; j++) {
+      if (processed.has(allRoutes[j].routeId)) {
+        continue;
+      }
       
-      routesToCombine.push({
-        endpoints: endpointKey,
-        routes: routeList.map(r => r.routeId)
+      if (areRoutesIdentical(allRoutes[i].trips, allRoutes[j].trips)) {
+        group.push(allRoutes[j]);
+        processed.add(allRoutes[j].routeId);
+      }
+    }
+    
+    // If we found duplicates, add to the result
+    if (group.length > 1) {
+      // Sort by route ID to ensure consistent primary route selection
+      group.sort((a, b) => parseInt(a.routeId) - parseInt(b.routeId));
+      
+      // Get endpoints for display
+      const firstTrip = group[0].trips[0];
+      const endpoints = `${firstTrip.stops[0]} <-> ${firstTrip.stops[firstTrip.stops.length - 1]}`;
+      
+      routeGroups.push({
+        endpoints,
+        routes: group.map(r => r.routeId)
       });
     }
   }
   
-  return routesToCombine;
+  return routeGroups;
 }
 
 /**
