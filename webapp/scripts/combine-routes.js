@@ -252,23 +252,29 @@ try {
   console.log('Combining duplicate routes...');
   
   let runningInDocker = true;
-  let routesPath = join(__dirname, '..', 'public', 'data', 'routes.json');
-  let tripsPath = join(__dirname, '..', 'public', 'data', 'trips.json');
+  let routesInputPath = join(__dirname, '..', 'public', 'data', 'routes.json');
+  let tripsInputPath = join(__dirname, '..', 'public', 'data', 'trips.json');
   let tripStopPath = join(__dirname, '..', 'public', 'data', 'trip_stop.json');
   
-  if (!existsSync(routesPath)) {
+  let routesOutputPath = join(__dirname, '..', 'public', 'data', 'routes-filtered.json');
+  let tripsOutputPath = join(__dirname, '..', 'public', 'data', 'trips-filtered.json');
+  
+  if (!existsSync(routesInputPath)) {
     runningInDocker = false;
-    routesPath = join(__dirname, '..', '..', 'data', 'latest', 'routes.json');
-    tripsPath = join(__dirname, '..', '..', 'data', 'latest', 'trips.json');
+    routesInputPath = join(__dirname, '..', '..', 'data', 'latest', 'routes.json');
+    tripsInputPath = join(__dirname, '..', '..', 'data', 'latest', 'trips.json');
     tripStopPath = join(__dirname, '..', '..', 'data', 'latest', 'trip_stop.json');
+    
+    routesOutputPath = join(__dirname, '..', '..', 'data', 'latest', 'routes-filtered.json');
+    tripsOutputPath = join(__dirname, '..', '..', 'data', 'latest', 'trips-filtered.json');
   }
   
   console.log('Reading routes.json...');
-  const routes = JSON.parse(readFileSync(routesPath, 'utf-8'));
+  const routes = JSON.parse(readFileSync(routesInputPath, 'utf-8'));
   console.log(`Loaded ${Object.keys(routes).length} routes`);
   
   console.log('Reading trips.json...');
-  const trips = JSON.parse(readFileSync(tripsPath, 'utf-8'));
+  const trips = JSON.parse(readFileSync(tripsInputPath, 'utf-8'));
   console.log(`Loaded ${Object.keys(trips).length} trips`);
   
   console.log('Reading trip_stop.json...');
@@ -294,11 +300,11 @@ try {
     
     // Save updated data
     console.log('\nSaving updated data...');
-    writeFileSync(routesPath, JSON.stringify(routesNew, null, 2));
-    console.log(`Routes saved to ${routesPath}`);
+    writeFileSync(routesOutputPath, JSON.stringify(routesNew, null, 2));
+    console.log(`Routes saved to ${routesOutputPath}`);
     
-    writeFileSync(tripsPath, JSON.stringify(tripsNew, null, 2));
-    console.log(`Trips saved to ${tripsPath}`);
+    writeFileSync(tripsOutputPath, JSON.stringify(tripsNew, null, 2));
+    console.log(`Trips saved to ${tripsOutputPath}`);
   }
   
   console.log('Done!');
