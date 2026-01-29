@@ -22,6 +22,8 @@ build/
 # Generated files
 data/latest/station-groups.json
 data/latest/stops-filtered.json
+webapp/public/data/routes.json
+webapp/public/data/trips.json
 
 # IDE
 .vscode/

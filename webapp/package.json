@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/generate-station-groups.js",
+    "predev": "node scripts/combine-routes.js && node scripts/generate-station-groups.js",
     "dev": "vite",
-    "prebuild": "node scripts/generate-station-groups.js",
+    "prebuild": "node scripts/combine-routes.js && node scripts/generate-station-groups.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

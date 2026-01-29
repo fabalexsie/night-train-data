@@ -30,30 +30,14 @@ The application will be available at http://localhost:32516/
 
 For more details, see the [webapp README](./webapp/README.md).
 
-## Data Processing Scripts
+## Data Processing
 
-### Combine Identical Routes
+The repository includes automated preprocessing scripts that run during the webapp build:
 
-The repository includes a preprocessing script to combine routes that have the same stations in forward and backward order. This reduces duplication and improves the clarity of the data visualization.
+1. **Combine Identical Routes** ([combine-routes.js](./webapp/scripts/combine-routes.js)): Identifies and merges routes with the same stations in forward/backward order (70%+ similarity), preserving all train names.
+2. **Generate Station Groups** ([generate-station-groups.js](./webapp/scripts/generate-station-groups.js)): Clusters nearby stations and filters to only those used by night trains.
 
-**Usage:**
-```bash
-python3 scripts/combine_routes.py
-```
-
-The script will:
-1. Identify routes with identical endpoints and similar stop patterns (70%+ similarity)
-2. Combine them into a single route while keeping all train names
-3. Update the routes.json and trips.json files
-4. Remove duplicate route entries
-
-**Example:**
-```
-Before: Route 68 (Nattåg 93 (L) = Nattåg 94 (L)) and Route 81 (Nattåg 91 = Nattåg 92)
-After:  Route 68 (Nattåg 91 / Nattåg 92 / Nattåg 93 (L) / Nattåg 94 (L))
-```
-
-This preprocessing step ensures that the web application displays each unique route only once, with all associated train names preserved.
+These scripts automatically run during `npm run build` or `npm run dev` in the webapp directory, ensuring the data is always processed consistently.
 
 ## How to update the data held in this repository
 There are several options for updating the data
