@@ -52,6 +52,65 @@ function areStopsReversed(stops1, stops2) {
 }
 
 /**
+ * Calculate similarity between two station sequences when reversed.
+ * Returns a value between 0 and 1, where 1 means perfect reverse match.
+ * Uses Longest Common Subsequence (LCS) to handle routes with different intermediate stops.
+ */
+function calculateReverseSimilarity(stops1, stops2) {
+  // Reverse stops2 for comparison
+  const stops2Rev = [...stops2].reverse();
+  
+  // Use LCS (Longest Common Subsequence) algorithm
+  const m = stops1.length;
+  const n = stops2Rev.length;
+  
+  // Create DP table
+  const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  
+  // Fill the DP table
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (stops1[i - 1] === stops2Rev[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  
+  const lcsLength = dp[m][n];
+  const maxLength = Math.max(m, n);
+  
+  // Return similarity as ratio of LCS to the longer sequence
+  return maxLength > 0 ? lcsLength / maxLength : 0;
+}
+
+/**
+ * Check if two station sequences are similar when reversed (at least 70% match).
+ * This allows for routes that take slightly different paths in each direction.
+ */
+function areStopsSimilarlyReversed(stops1, stops2, threshold = 0.70) {
+  // First check for exact reverse match (faster)
+  if (areStopsReversed(stops1, stops2)) {
+    return true;
+  }
+  
+  // Check if endpoints match (required for similar routes)
+  if (stops1.length === 0 || stops2.length === 0) {
+    return false;
+  }
+  
+  // Endpoints must match when reversed
+  if (stops1[0] !== stops2[stops2.length - 1] || stops1[stops1.length - 1] !== stops2[0]) {
+    return false;
+  }
+  
+  // Calculate similarity
+  const similarity = calculateReverseSimilarity(stops1, stops2);
+  return similarity >= threshold;
+}
+
+/**
  * Get all trips with their stop sequences for a route
  */
 function getRouteTripStops(routeId, trips, tripStops) {
@@ -79,9 +138,10 @@ function getRouteTripStops(routeId, trips, tripStops) {
 }
 
 /**
- * Check if two routes are identical (same stops in forward/backward order)
+ * Check if two routes are identical or similar (same stops in forward/backward order)
  * A route with trips A-B-C-D-E and E-D-C-B-A should match another route
- * with the same pattern
+ * with the same pattern. Also matches routes with 70%+ similarity to handle
+ * cases where trains take slightly different paths in each direction.
  */
 function areRoutesIdentical(route1Trips, route2Trips) {
   if (!route1Trips || !route2Trips) {
@@ -93,7 +153,7 @@ function areRoutesIdentical(route1Trips, route2Trips) {
     let foundMatch = false;
     
     for (const trip2 of route2Trips) {
-      if (areStopsReversed(trip1.stops, trip2.stops)) {
+      if (areStopsSimilarlyReversed(trip1.stops, trip2.stops)) {
         foundMatch = true;
         break;
       }
@@ -109,7 +169,7 @@ function areRoutesIdentical(route1Trips, route2Trips) {
     let foundMatch = false;
     
     for (const trip1 of route1Trips) {
-      if (areStopsReversed(trip1.stops, trip2.stops)) {
+      if (areStopsSimilarlyReversed(trip1.stops, trip2.stops)) {
         foundMatch = true;
         break;
       }
