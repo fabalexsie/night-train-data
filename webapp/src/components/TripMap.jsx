@@ -234,8 +234,10 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
 
     // Calculate offset for metro-style route organization
     // This prevents routes from overlapping by offsetting them perpendicular to their direction
+    // Use a constant base weight for consistent positioning regardless of highlight state
+    const baseWeight = 3
     const totalRoutes = filteredTrips.length
-    const lineSpacing = weight + 2 // Space between lines
+    const lineSpacing = baseWeight + 2 // Space between lines
     const totalWidth = totalRoutes * lineSpacing
     const offset = index * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
 
@@ -247,9 +249,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
           color={color}
           weight={weight}
           opacity={opacity}
-          pathOptions={{
-            offset: offset
-          }}
+          offset={offset}
           eventHandlers={{
             mouseover: () => onTripHover(trip.trip_id),
             mouseout: () => onTripHover(null),
