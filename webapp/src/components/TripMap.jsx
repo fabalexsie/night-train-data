@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, CircleMarker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet-polylineoffset'
 import './TripMap.css'
 
 // Fix Leaflet default icon issue
@@ -231,6 +232,13 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const circleRadius = isHighlighted ? 5 : 4
     const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
 
+    // Calculate offset for metro-style route organization
+    // This prevents routes from overlapping by offsetting them perpendicular to their direction
+    const totalRoutes = filteredTrips.length
+    const lineSpacing = weight + 2 // Space between lines
+    const totalWidth = totalRoutes * lineSpacing
+    const offset = index * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
+
     return (
       <div key={`${keyPrefix}${trip.trip_id}`}>
         {/* Draw the route line */}
@@ -239,6 +247,9 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
           color={color}
           weight={weight}
           opacity={opacity}
+          pathOptions={{
+            offset: offset
+          }}
           eventHandlers={{
             mouseover: () => onTripHover(trip.trip_id),
             mouseout: () => onTripHover(null),
