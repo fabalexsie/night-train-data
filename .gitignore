@@ -4,11 +4,6 @@ out
 credentials.json
 token.json
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-
 # Node.js
 node_modules/
 npm-debug.log*
@@ -22,8 +17,6 @@ build/
 # Generated files
 data/latest/station-groups.json
 data/latest/stops-filtered.json
-webapp/public/data/routes.json
-webapp/public/data/trips.json
 
 # IDE
 .vscode/
