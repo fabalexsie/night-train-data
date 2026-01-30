@@ -111,27 +111,43 @@ The application uses the **Leaflet.PolylineOffset** plugin to organize multiple 
 
 ### How It Works
 
-When multiple routes are displayed:
-- Each route is automatically offset perpendicular to its direction
-- Routes are spread evenly around the original path
-- The offset distance is calculated based on the total number of routes and line weight
-- Routes maintain their visual properties (color, weight, opacity) while being offset
+The application uses **per-segment offset calculation** to intelligently organize routes:
 
-This creates a visual effect similar to metro maps where multiple lines running parallel are shown side-by-side rather than on top of each other.
+1. **Segment-based analysis**: Each route is broken down into segments (pairs of consecutive stops)
+2. **Overlap detection**: For each segment, the system determines which routes share that specific segment
+3. **Smart offsetting**: Routes are offset perpendicular to their direction based only on the number of routes sharing each segment
+4. **Optimal spacing**: Routes only spread apart where they actually overlap, staying close to their true geographic path elsewhere
+
+This approach ensures that routes don't deviate too far from their actual position. For example, if 20 routes are visible but only 4 overlap on a particular segment, only those 4 routes will be offset by a small amount on that segment.
+
+### Benefits
+
+- **Minimal deviation**: Routes stay close to their true geographic position
+- **Better readability**: Routes are clearly separated where they overlap
+- **Geographic accuracy**: No unnecessary spreading on segments with few overlapping routes
+- **Scalable**: Works well with any number of visible routes
 
 ### Technical Details
 
-The offset for each route is calculated using the formula:
+The offset for each segment is calculated using the formula:
 ```javascript
-offset = index * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
+// For each segment, find which routes use it
+const routesOnSegment = segmentToRoutes.get(segmentKey)
+const positionInSegment = routesOnSegment.indexOf(routeIndex)
+const routesOnSegmentCount = routesOnSegment.length
+
+// Calculate offset based only on routes sharing this segment
+const totalWidth = routesOnSegmentCount * lineSpacing
+const offset = positionInSegment * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
 ```
 
 Where:
-- `index` is the route's position in the filtered trips array
-- `lineSpacing` is the space between lines (line weight + 2 pixels)
-- `totalWidth` is the total width needed for all routes
+- `positionInSegment` is the route's position among routes sharing this segment
+- `lineSpacing` is the space between lines (base weight 3px + 2px spacing)
+- `totalWidth` is the total width needed for routes on this specific segment
+- `routesOnSegmentCount` is the number of routes sharing this particular segment
 
-This ensures routes are centered around the original path and evenly distributed.
+This ensures routes are centered around the original path and evenly distributed, with spacing calculated independently for each segment.
 
 ## Technology Stack
 
