@@ -286,7 +286,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
 
     return (
       <div key={`${keyPrefix}${trip.trip_id}`}>
-        {/* Draw route segments with per-segment offsets (spacing = 0) */}
+        {/* Draw route segments with offset = 0 (all routes overlap) */}
         {segments}
       </div>
     )
