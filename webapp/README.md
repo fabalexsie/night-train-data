@@ -7,6 +7,7 @@ A React single-page application for filtering and visualizing night train trips 
 - **Station Autocomplete**: Search and select stations using an autocomplete text input
 - **Trip Filtering**: Filter trips by selected stations - if at least one station matches, the complete trip is shown
 - **Interactive Map**: Display filtered trips on an interactive map with routes and station markers
+- **Metro-Style Route Organization**: Routes are automatically offset perpendicular to their direction to prevent overlap, similar to metro maps where multiple lines are shown side-by-side
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## Development
@@ -104,12 +105,57 @@ cd webapp/public
 ln -s ../../data/latest data
 ```
 
+## Route Organization
+
+The application uses the **Leaflet.PolylineOffset** plugin to organize multiple routes on the map in a metro-style layout. This prevents routes from overlapping and makes it easier to distinguish between different train lines.
+
+### How It Works
+
+The application uses **per-segment offset calculation** to intelligently organize routes:
+
+1. **Segment-based analysis**: Each route is broken down into segments (pairs of consecutive stops)
+2. **Overlap detection**: For each segment, the system determines which routes share that specific segment
+3. **Smart offsetting**: Routes are offset perpendicular to their direction based only on the number of routes sharing each segment
+4. **Optimal spacing**: Routes only spread apart where they actually overlap, staying close to their true geographic path elsewhere
+
+This approach ensures that routes don't deviate too far from their actual position. For example, if 20 routes are visible but only 4 overlap on a particular segment, only those 4 routes will be offset by a small amount on that segment.
+
+### Benefits
+
+- **Minimal deviation**: Routes stay close to their true geographic position
+- **Better readability**: Routes are clearly separated where they overlap
+- **Geographic accuracy**: No unnecessary spreading on segments with few overlapping routes
+- **Scalable**: Works well with any number of visible routes
+
+### Technical Details
+
+The offset for each segment is calculated using the formula:
+```javascript
+// For each segment, find which routes use it
+const routesOnSegment = segmentToRoutes.get(segmentKey)
+const positionInSegment = routesOnSegment.indexOf(routeIndex)
+const routesOnSegmentCount = routesOnSegment.length
+
+// Calculate offset based only on routes sharing this segment
+const totalWidth = routesOnSegmentCount * lineSpacing
+const offset = positionInSegment * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
+```
+
+Where:
+- `positionInSegment` is the route's position among routes sharing this segment
+- `lineSpacing` is the space between lines (base weight 3px + 2px spacing)
+- `totalWidth` is the total width needed for routes on this specific segment
+- `routesOnSegmentCount` is the number of routes sharing this particular segment
+
+This ensures routes are centered around the original path and evenly distributed, with spacing calculated independently for each segment.
+
 ## Technology Stack
 
 - **React** - UI framework
 - **Vite** - Build tool and dev server
 - **Leaflet** - Interactive maps
 - **React Leaflet** - React components for Leaflet
+- **Leaflet.PolylineOffset** - Plugin for offsetting polylines to prevent route overlap
 - **Nginx** - Production web server (in Docker)
 
 ## License

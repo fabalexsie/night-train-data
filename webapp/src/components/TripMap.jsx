@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, CircleMarker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet-polylineoffset'
 import './TripMap.css'
 
 // Fix Leaflet default icon issue
@@ -202,6 +203,32 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     return `#${toHex(rOut)}${toHex(gOut)}${toHex(bOut)}`
   }
 
+  // Helper function to create a segment key for two consecutive stops
+  const getSegmentKey = (stopId1, stopId2) => {
+    // Sort stop IDs to ensure consistent key regardless of direction
+    return stopId1 < stopId2 ? `${stopId1}-${stopId2}` : `${stopId2}-${stopId1}`
+  }
+
+  // Build a map of segments to routes that use them
+  const segmentToRoutes = useMemo(() => {
+    const segmentMap = new Map()
+    
+    filteredTrips.forEach(({ stops: tripStops }, tripIndex) => {
+      for (let i = 0; i < tripStops.length - 1; i++) {
+        const stopId1 = tripStops[i].stop_id
+        const stopId2 = tripStops[i + 1].stop_id
+        const segmentKey = getSegmentKey(stopId1, stopId2)
+        
+        if (!segmentMap.has(segmentKey)) {
+          segmentMap.set(segmentKey, [])
+        }
+        segmentMap.get(segmentKey).push(tripIndex)
+      }
+    })
+    
+    return segmentMap
+  }, [filteredTrips])
+
   // Helper function to render a single trip route with its stops
   const renderTripRoute = (trip, tripStops, index, keyPrefix = '') => {
     // Get coordinates for all stops in this trip
@@ -231,20 +258,55 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const circleRadius = isHighlighted ? 5 : 4
     const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
 
-    return (
-      <div key={`${keyPrefix}${trip.trip_id}`}>
-        {/* Draw the route line */}
+    // Base weight for offset calculation (constant for stable positioning)
+    const baseWeight = 3
+    const lineSpacing = baseWeight + 2 // Space between lines
+
+    // Draw each segment separately with per-segment offset calculation
+    const segments = []
+    for (let i = 0; i < tripStops.length - 1; i++) {
+      const stop1 = stops[tripStops[i].stop_id]
+      const stop2 = stops[tripStops[i + 1].stop_id]
+      
+      if (!stop1 || !stop2 || !stop1.stop_lat || !stop1.stop_lon || !stop2.stop_lat || !stop2.stop_lon) {
+        continue
+      }
+
+      const segmentKey = getSegmentKey(tripStops[i].stop_id, tripStops[i + 1].stop_id)
+      const routesOnSegment = segmentToRoutes.get(segmentKey) || [index]
+      
+      // Find the position of this route among routes on this segment
+      const positionInSegment = routesOnSegment.indexOf(index)
+      const routesOnSegmentCount = routesOnSegment.length
+      
+      // Calculate offset based only on routes sharing this segment
+      const totalWidth = routesOnSegmentCount * lineSpacing
+      const offset = positionInSegment * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
+
+      segments.push(
         <Polyline
-          positions={coordinates}
+          key={`${keyPrefix}${trip.trip_id}-segment-${i}`}
+          positions={[
+            [stop1.stop_lat, stop1.stop_lon],
+            [stop2.stop_lat, stop2.stop_lon]
+          ]}
           color={color}
           weight={weight}
           opacity={opacity}
+          offset={offset}
           eventHandlers={{
             mouseover: () => onTripHover(trip.trip_id),
             mouseout: () => onTripHover(null),
             click: () => onTripClick && onTripClick(trip.trip_id)
           }}
         />
+      )
+    }
+
+    return (
+      <div key={`${keyPrefix}${trip.trip_id}`}>
+        {/* Draw route segments with per-segment offsets */}
+        {segments}
 
         {/* Add markers for selected stops, circles for other stops */}
         {tripStops.map((ts, stopIndex) => {
