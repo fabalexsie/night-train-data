@@ -203,32 +203,6 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     return `#${toHex(rOut)}${toHex(gOut)}${toHex(bOut)}`
   }
 
-  // Helper function to create a segment key for two consecutive stops
-  const getSegmentKey = (stopId1, stopId2) => {
-    // Sort stop IDs to ensure consistent key regardless of direction
-    return stopId1 < stopId2 ? `${stopId1}-${stopId2}` : `${stopId2}-${stopId1}`
-  }
-
-  // Build a map of segments to routes that use them
-  const segmentToRoutes = useMemo(() => {
-    const segmentMap = new Map()
-    
-    filteredTrips.forEach(({ stops: tripStops }, tripIndex) => {
-      for (let i = 0; i < tripStops.length - 1; i++) {
-        const stopId1 = tripStops[i].stop_id
-        const stopId2 = tripStops[i + 1].stop_id
-        const segmentKey = getSegmentKey(stopId1, stopId2)
-        
-        if (!segmentMap.has(segmentKey)) {
-          segmentMap.set(segmentKey, [])
-        }
-        segmentMap.get(segmentKey).push(tripIndex)
-      }
-    })
-    
-    return segmentMap
-  }, [filteredTrips])
-
   // Build a consolidated map of stops to all trips that use them
   const stopsToTripsMap = useMemo(() => {
     const stopMap = new Map()
@@ -277,10 +251,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const weight = isHighlighted ? 5 : 3
     const opacity = shouldDesaturate ? 0.5 : (isHighlighted ? 1 : 0.8)
 
-    // Set spacing to 0 as per requirement - all routes will overlap at the same position
-    const lineSpacing = 0
-
-    // Draw each segment separately with per-segment offset calculation
+    // Draw each segment separately with offset = 0 (no spacing between routes)
     const segments = []
     for (let i = 0; i < tripStops.length - 1; i++) {
       const stop1 = stops[tripStops[i].stop_id]
@@ -290,17 +261,8 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
         continue
       }
 
-      const segmentKey = getSegmentKey(tripStops[i].stop_id, tripStops[i + 1].stop_id)
-      const routesOnSegment = segmentToRoutes.get(segmentKey) || [index]
-      
-      // Find the position of this route among routes on this segment
-      const positionInSegment = routesOnSegment.indexOf(index)
-      const routesOnSegmentCount = routesOnSegment.length
-      
-      // Calculate offset based only on routes sharing this segment
-      // With lineSpacing = 0, all routes will be at the same position (offset = 0)
-      const totalWidth = routesOnSegmentCount * lineSpacing
-      const offset = positionInSegment * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
+      // All routes overlap at the same position (offset = 0)
+      const offset = 0
 
       segments.push(
         <Polyline
