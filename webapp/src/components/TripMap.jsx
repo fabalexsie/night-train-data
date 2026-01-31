@@ -14,28 +14,28 @@ L.Icon.Default.mergeOptions({
 })
 
 // Component for station popup content
-function StationPopupContent({ stop, trip, stopIndex, totalStops }) {
+function StationPopupContent({ stop, trips }) {
   return (
     <div className="stop-popup">
       <strong>{stop.stop_name}</strong>
       {stop.stop_country && <div>Country: {stop.stop_country}</div>}
-      <div style={{ marginTop: '0.5rem', color: '#666' }}>
-        {trip ? (
-          <>
-            <strong>{trip.trip_short_name}</strong>
-            <br />
-            {trip.trip_origin && trip.trip_headsign && (
-              <>
-                {trip.trip_origin} → {trip.trip_headsign}
-                <br />
-              </>
-            )}
-            Stop {stopIndex + 1} of {totalStops}
-          </>
-        ) : (
-          'Not on any displayed route'
-        )}
-      </div>
+      {trips && trips.length > 0 && (
+        <div style={{ marginTop: '0.5rem', color: '#666' }}>
+          {trips.map((tripInfo, index) => (
+            <div key={tripInfo.trip.trip_id} style={{ marginTop: index > 0 ? '0.5rem' : 0 }}>
+              <strong>{tripInfo.trip.trip_short_name}</strong>
+              <br />
+              {tripInfo.trip.trip_origin && tripInfo.trip.trip_headsign && (
+                <>
+                  {tripInfo.trip.trip_origin} → {tripInfo.trip.trip_headsign}
+                  <br />
+                </>
+              )}
+              Stop {tripInfo.stopIndex + 1} of {tripInfo.totalStops}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -229,6 +229,27 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     return segmentMap
   }, [filteredTrips])
 
+  // Build a consolidated map of stops to all trips that use them
+  const stopsToTripsMap = useMemo(() => {
+    const stopMap = new Map()
+    
+    filteredTrips.forEach(({ trip, stops: tripStops }, tripIndex) => {
+      tripStops.forEach((ts, stopIndex) => {
+        if (!stopMap.has(ts.stop_id)) {
+          stopMap.set(ts.stop_id, [])
+        }
+        stopMap.get(ts.stop_id).push({
+          trip,
+          tripIndex,
+          stopIndex,
+          totalStops: tripStops.length
+        })
+      })
+    })
+    
+    return stopMap
+  }, [filteredTrips])
+
   // Helper function to render a single trip route with its stops
   const renderTripRoute = (trip, tripStops, index, keyPrefix = '') => {
     // Get coordinates for all stops in this trip
@@ -255,12 +276,10 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const color = shouldDesaturate ? desaturateColor(baseColor, 0.3) : baseColor
     const weight = isHighlighted ? 5 : 3
     const opacity = shouldDesaturate ? 0.5 : (isHighlighted ? 1 : 0.8)
-    const circleRadius = isHighlighted ? 5 : 4
-    const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
 
     // Base weight for offset calculation (constant for stable positioning)
     const baseWeight = 3
-    const lineSpacing = baseWeight + 2 // Space between lines
+    const lineSpacing = baseWeight + 0 // Space between lines (set to 0 for no spacing)
 
     // Draw each segment separately with per-segment offset calculation
     const segments = []
@@ -307,56 +326,6 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
       <div key={`${keyPrefix}${trip.trip_id}`}>
         {/* Draw route segments with per-segment offsets */}
         {segments}
-
-        {/* Add markers for selected stops, circles for other stops */}
-        {tripStops.map((ts, stopIndex) => {
-          const stop = stops[ts.stop_id]
-          if (!stop || !stop.stop_lat || !stop.stop_lon) return null
-
-          const isSelected = selectedStationIds.has(ts.stop_id)
-
-          // Use Marker for selected stations, CircleMarker for others
-          if (isSelected) {
-            return (
-              <Marker
-                key={`${keyPrefix}${ts.train_stop_id}`}
-                position={[stop.stop_lat, stop.stop_lon]}
-              >
-                <Popup>
-                  <StationPopupContent 
-                    stop={stop} 
-                    trip={trip} 
-                    stopIndex={stopIndex} 
-                    totalStops={tripStops.length} 
-                  />
-                </Popup>
-              </Marker>
-            )
-          } else {
-            return (
-              <CircleMarker
-                key={`${keyPrefix}${ts.train_stop_id}`}
-                center={[stop.stop_lat, stop.stop_lon]}
-                radius={circleRadius}
-                pathOptions={{
-                  fillColor: color,
-                  fillOpacity: circleFillOpacity,
-                  color: color,
-                  weight: isHighlighted ? 2 : 1
-                }}
-              >
-                <Popup>
-                  <StationPopupContent 
-                    stop={stop} 
-                    trip={trip} 
-                    stopIndex={stopIndex} 
-                    totalStops={tripStops.length} 
-                  />
-                </Popup>
-              </CircleMarker>
-            )
-          }
-        })}
       </div>
     )
   }
@@ -408,6 +377,77 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
           return renderTripRoute(trip, tripStops, index, 'hovered-')
         })}
 
+        {/* Render consolidated stop markers */}
+        {Array.from(stopsToTripsMap.entries()).map(([stopId, tripInfos]) => {
+          const stop = stops[stopId]
+          if (!stop || !stop.stop_lat || !stop.stop_lon) return null
+
+          const isSelected = selectedStationIds.has(stopId)
+
+          // Use Marker for selected stations, skip them as they're rendered separately
+          if (isSelected) {
+            return null
+          }
+
+          // Check if any trip is currently highlighted (globally)
+          const hasHighlightedTrip = hoveredTripId !== null || selectedTripId !== null
+
+          // Check if any of the trips using this stop is highlighted
+          const isHighlighted = tripInfos.some(
+            info => info.trip.trip_id === hoveredTripId || info.trip.trip_id === selectedTripId
+          )
+
+          // For color, use the first trip's color
+          const firstTripInfo = tripInfos[0]
+          const baseColor = getColorForTrip(firstTripInfo.tripIndex)
+          const shouldDesaturate = hasHighlightedTrip && !isHighlighted
+          const color = shouldDesaturate ? desaturateColor(baseColor, 0.3) : baseColor
+          const circleRadius = isHighlighted ? 5 : 4
+          const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
+
+          return (
+            <CircleMarker
+              key={`consolidated-${stopId}`}
+              center={[stop.stop_lat, stop.stop_lon]}
+              radius={circleRadius}
+              pathOptions={{
+                fillColor: color,
+                fillOpacity: circleFillOpacity,
+                color: color,
+                weight: isHighlighted ? 2 : 1
+              }}
+            >
+              <Popup>
+                <StationPopupContent stop={stop} trips={tripInfos} />
+              </Popup>
+            </CircleMarker>
+          )
+        })}
+
+        {/* Add markers for selected stations on routes */}
+        {Array.from(stopsToTripsMap.entries()).map(([stopId, tripInfos]) => {
+          const stop = stops[stopId]
+          if (!stop || !stop.stop_lat || !stop.stop_lon) return null
+
+          const isSelected = selectedStationIds.has(stopId)
+
+          // Only render markers for selected stations that are on routes
+          if (!isSelected) {
+            return null
+          }
+
+          return (
+            <Marker
+              key={`selected-marker-${stopId}`}
+              position={[stop.stop_lat, stop.stop_lon]}
+            >
+              <Popup>
+                <StationPopupContent stop={stop} trips={tripInfos} />
+              </Popup>
+            </Marker>
+          )
+        })}
+
         {/* Add markers for selected stations not on any route */}
         {selectedStationsNotOnRoute.map((stop) => (
           <Marker
@@ -415,7 +455,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
             position={[stop.stop_lat, stop.stop_lon]}
           >
             <Popup>
-              <StationPopupContent stop={stop} />
+              <StationPopupContent stop={stop} trips={[]} />
             </Popup>
           </Marker>
         ))}
