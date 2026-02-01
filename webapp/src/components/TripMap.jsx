@@ -397,13 +397,11 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
             info => info.trip.trip_id === hoveredTripId || info.trip.trip_id === selectedTripId
           )
 
-          // For color, use the first trip's color
-          const firstTripInfo = tripInfos[0]
-          const baseColor = getColorForTrip(firstTripInfo.tripIndex)
+          // Use grey color for all circles
           const shouldDesaturate = hasHighlightedTrip && !isHighlighted
-          const color = shouldDesaturate ? desaturateColor(baseColor, 0.3) : baseColor
+          const color = '#808080' // Grey color
           const circleRadius = isHighlighted ? 5 : 4
-          const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
+          const circleFillOpacity = shouldDesaturate ? 0.5 : (isHighlighted ? 0.9 : 0.7)
 
           return (
             <CircleMarker
