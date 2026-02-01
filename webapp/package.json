@@ -9,7 +9,8 @@
     "prebuild": "node scripts/generate-station-groups.js",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fix-station": "node scripts/fix-station-positions.js"
   },
   "dependencies": {
     "@turf/distance": "^7.3.1",
