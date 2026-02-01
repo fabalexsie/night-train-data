@@ -249,10 +249,11 @@ body {
     height: 100%;
   }
 
-  /* Reduce trip list height on mobile to make room for stops */
+  /* Make trip list fill remaining vertical space on mobile */
   .trip-list {
-    max-height: var(--trip-list-mobile-height);
-    flex-shrink: 0;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 
   /* Make trip items more compact on mobile */

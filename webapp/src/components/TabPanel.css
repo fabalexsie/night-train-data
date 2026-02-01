@@ -73,5 +73,6 @@
   .tab-content.trip-info-tab {
     display: flex;
     overflow: hidden;
+    padding: 1rem;
   }
 }
