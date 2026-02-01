@@ -329,7 +329,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     }
 
     return (
-      <div key={`${keyPrefix}${trip.trip_id}`}>
+      <div key={`${keyPrefix}${trip.trip_id}${isHighlighted}${shouldDesaturate}`}>
         {/* Draw route segments with per-segment offsets */}
         {segments}
       </div>
