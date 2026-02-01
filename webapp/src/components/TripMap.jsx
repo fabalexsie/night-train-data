@@ -401,9 +401,9 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
           )
 
           // Use grey color for all circles, with reduced opacity for non-highlighted stops
-          const shouldDesaturate = hasHighlightedTrip && !isHighlighted
+          const shouldReduceOpacity = hasHighlightedTrip && !isHighlighted
           const circleRadius = isHighlighted ? 5 : 4
-          const circleFillOpacity = shouldDesaturate ? 0.5 : (isHighlighted ? 0.9 : 0.7)
+          const circleFillOpacity = shouldReduceOpacity ? 0.5 : (isHighlighted ? 0.9 : 0.7)
 
           return (
             <CircleMarker
