@@ -237,6 +237,50 @@ body {
     height: 100%;
     position: relative;
   }
+
+  /* Restructure trip info layout on mobile */
+  .trip-info {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  /* Reduce trip list height on mobile to make room for stops */
+  .trip-list {
+    max-height: 250px;
+    flex-shrink: 0;
+  }
+
+  /* Make trip items more compact on mobile */
+  .trip-item {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  /* Position stops section at the bottom on mobile */
+  .selected-trip-stops {
+    margin-top: auto;
+    padding: 1rem;
+    background: white;
+    border-top: 2px solid #667eea;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .selected-trip-stops h4 {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Adjust stop chips for mobile */
+  .stop-chip {
+    padding: 0.4rem;
+    min-width: 80px;
+  }
+
+  .stop-name {
+    font-size: 0.7rem;
+  }
 }
 
 /* Hide Map tab on desktop */

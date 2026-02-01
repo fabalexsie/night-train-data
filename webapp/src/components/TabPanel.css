@@ -52,3 +52,26 @@
   padding-top: 0;
   overflow: hidden;
 }
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  .tab-buttons {
+    margin: 0;
+    padding: 0 1rem;
+  }
+
+  .tab-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .tab-content {
+    padding-top: 1rem;
+  }
+
+  /* Make trip info tab use flexbox layout on mobile */
+  .tab-content:has(.trip-info) {
+    display: flex;
+    overflow: hidden;
+  }
+}
