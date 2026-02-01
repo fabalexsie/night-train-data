@@ -5,6 +5,9 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet-polylineoffset'
 import './TripMap.css'
 
+// Constants
+const STATION_MARKER_COLOR = '#808080' // Grey color for all station circle markers
+
 // Fix Leaflet default icon issue
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -397,13 +400,10 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
             info => info.trip.trip_id === hoveredTripId || info.trip.trip_id === selectedTripId
           )
 
-          // For color, use the first trip's color
-          const firstTripInfo = tripInfos[0]
-          const baseColor = getColorForTrip(firstTripInfo.tripIndex)
-          const shouldDesaturate = hasHighlightedTrip && !isHighlighted
-          const color = shouldDesaturate ? desaturateColor(baseColor, 0.3) : baseColor
+          // Use grey color for all circles, with reduced opacity for non-highlighted stops
+          const shouldReduceOpacity = hasHighlightedTrip && !isHighlighted
           const circleRadius = isHighlighted ? 5 : 4
-          const circleFillOpacity = shouldDesaturate ? 0.4 : (isHighlighted ? 0.8 : 0.6)
+          const circleFillOpacity = shouldReduceOpacity ? 0.5 : (isHighlighted ? 0.9 : 0.7)
 
           return (
             <CircleMarker
@@ -411,9 +411,9 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
               center={[stop.stop_lat, stop.stop_lon]}
               radius={circleRadius}
               pathOptions={{
-                fillColor: color,
+                fillColor: STATION_MARKER_COLOR,
                 fillOpacity: circleFillOpacity,
-                color: color,
+                color: STATION_MARKER_COLOR,
                 weight: isHighlighted ? 2 : 1
               }}
             >
