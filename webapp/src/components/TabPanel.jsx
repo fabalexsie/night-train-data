@@ -30,7 +30,7 @@ function TabPanel({ tabs, activeTab: controlledActiveTab, onTabChange }) {
           </button>
         ))}
       </div>
-      <div className="tab-content">
+      <div className={`tab-content ${tabs[activeTab]?.contentClassName || ''}`}>
         {tabs[activeTab]?.content}
       </div>
     </div>
