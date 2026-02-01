@@ -306,6 +306,22 @@ function App() {
                     )}
                   </div>
                 )
+              },
+              {
+                label: 'Map',
+                content: (
+                  <div className="map-container map-in-tab">
+                    <TripMap 
+                      stops={stops}
+                      filteredTrips={filteredTrips}
+                      selectedStationGroups={selectedStationGroups}
+                      hoveredTripId={hoveredTripId}
+                      selectedTripId={selectedTripId}
+                      onTripHover={handleTripHover}
+                      onTripClick={handleTripClick}
+                    />
+                  </div>
+                )
               }
             ]}
           />
