@@ -273,7 +273,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const isHighlighted = isHovered || isTripSelected
 
     // Base weight for offset calculation (constant for stable positioning)
-    const baseWeight = 5
+    const baseWeight = 3
     const lineSpacing = baseWeight + 0 // Space between lines (set to 0 for no spacing)
 
     // Determine visual properties based on highlight state
@@ -405,7 +405,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
 
           // Use grey color for all circles, with reduced opacity for non-highlighted stops
           const shouldReduceOpacity = hasHighlightedTrip && !isHighlighted
-          const circleRadius = isHighlighted ? 5 : 4
+          const circleRadius = isHighlighted ? 8 : 5
           const circleFillOpacity = shouldReduceOpacity ? 0.5 : (isHighlighted ? 0.9 : 0.7)
 
           return (
@@ -417,7 +417,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
                 fillColor: STATION_MARKER_COLOR,
                 fillOpacity: circleFillOpacity,
                 color: STATION_MARKER_COLOR,
-                weight: isHighlighted ? 2 : 1
+                weight: isHighlighted ? 3 : 1
               }}
             >
               <Popup>
