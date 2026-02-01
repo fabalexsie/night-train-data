@@ -1,3 +1,7 @@
+:root {
+  --trip-list-mobile-height: 250px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -247,7 +251,7 @@ body {
 
   /* Reduce trip list height on mobile to make room for stops */
   .trip-list {
-    max-height: 250px;
+    max-height: var(--trip-list-mobile-height);
     flex-shrink: 0;
   }
 

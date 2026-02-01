@@ -247,6 +247,7 @@ function App() {
               },
               {
                 label: 'Filtered Trips',
+                contentClassName: 'trip-info-tab',
                 content: (
                   <div className="trip-info">
                     <h3>Filtered Trips</h3>

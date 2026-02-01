@@ -70,7 +70,7 @@
   }
 
   /* Make trip info tab use flexbox layout on mobile */
-  .tab-content:has(.trip-info) {
+  .tab-content.trip-info-tab {
     display: flex;
     overflow: hidden;
   }
