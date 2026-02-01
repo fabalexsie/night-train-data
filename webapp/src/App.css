@@ -32,6 +32,22 @@ body {
   font-size: 1rem;
 }
 
+/* Mobile-specific styles for header */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .app-header h1 {
+    margin-bottom: 0.25rem;
+    font-size: 1.25rem;
+  }
+
+  .app-header p {
+    font-size: 0.85rem;
+  }
+}
+
 .app-content {
   display: flex;
   flex: 1;
@@ -74,6 +90,19 @@ body {
 .trip-info p {
   color: #666;
   margin-bottom: 1rem;
+}
+
+/* Mobile-specific styles for trip info */
+@media (max-width: 768px) {
+  .trip-info h3 {
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+  }
+
+  .trip-info p {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
 }
 
 .trip-list {
@@ -192,10 +221,27 @@ body {
 
   .sidebar {
     width: 100%;
-    max-height: 50vh;
+    max-height: none;
+    height: 100%;
+    padding: 0;
   }
 
+  /* Hide the standalone map container in mobile view */
   .map-container {
-    min-height: 50vh;
+    display: none;
+  }
+
+  /* Show map container when it's in a tab - fullscreen */
+  .map-container.map-in-tab {
+    display: block;
+    height: 100%;
+    position: relative;
+  }
+}
+
+/* Hide Map tab on desktop */
+@media (min-width: 769px) {
+  .tab-button.map-tab {
+    display: none;
   }
 }
