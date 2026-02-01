@@ -309,6 +309,7 @@ function App() {
               },
               {
                 label: 'Map',
+                buttonClassName: 'map-tab',
                 content: (
                   <div className="map-container map-in-tab">
                     <TripMap 

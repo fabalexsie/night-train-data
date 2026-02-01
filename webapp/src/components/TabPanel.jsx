@@ -21,7 +21,7 @@ function TabPanel({ tabs, activeTab: controlledActiveTab, onTabChange }) {
         {tabs.map((tab, index) => (
           <button
             key={index}
-            className={`tab-button ${activeTab === index ? 'active' : ''}`}
+            className={`tab-button ${activeTab === index ? 'active' : ''} ${tab.buttonClassName || ''}`}
             onClick={() => handleTabClick(index)}
             aria-selected={activeTab === index}
             role="tab"

@@ -223,6 +223,7 @@ body {
     width: 100%;
     max-height: none;
     height: 100%;
+    padding: 0;
   }
 
   /* Hide the standalone map container in mobile view */
@@ -230,10 +231,22 @@ body {
     display: none;
   }
 
-  /* Show map container when it's in a tab */
+  /* Show map container when it's in a tab - fullscreen */
   .map-container.map-in-tab {
     display: block;
-    height: 70vh;
+    height: 100%;
     position: relative;
+  }
+
+  /* Remove padding from tab content when showing map */
+  .tab-content:has(.map-in-tab) {
+    padding: 0;
+  }
+}
+
+/* Hide Map tab on desktop */
+@media (min-width: 769px) {
+  .tab-button.map-tab {
+    display: none;
   }
 }
