@@ -410,7 +410,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
 
           return (
             <CircleMarker
-              key={`consolidated-${stopId}`}
+              key={`consolidated-${stopId}${hoveredTripId}${selectedTripId}`}
               center={[stop.stop_lat, stop.stop_lon]}
               radius={circleRadius}
               pathOptions={{
