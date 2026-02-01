@@ -5,14 +5,22 @@
  * Filters stops to only include those used by night trains (from trip_stop.json)
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import distance from '@turf/distance';
-import { point } from '@turf/helpers';
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import distance from "@turf/distance";
+import { point } from "@turf/helpers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Get new lines from fix-station-positions.js
+export const correctedPositions = {
+  "St. Valentin": { lat: 48.1684774, lon: 14.5496245 },
+  "Ústí nad Labem hl.n.": { lat: 50.6598369, lon: 14.0439564 },
+  Rankweil: { lat: 47.2703808, lon: 9.6426923 },
+  Vöcklabruck: { lat: 48.0078587, lon: 13.6460378 },
+};
 
 /**
  * Remove fields with empty string values from an object
@@ -20,7 +28,7 @@ const __dirname = dirname(__filename);
 function removeEmptyFields(obj) {
   const result = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (value !== '') {
+    if (value !== "") {
       result[key] = value;
     }
   }
@@ -32,18 +40,18 @@ function removeEmptyFields(obj) {
  */
 function getMostCommonCountry(stations) {
   const countryFreq = {};
-  stations.forEach(s => {
+  stations.forEach((s) => {
     if (s.stop_country) {
       countryFreq[s.stop_country] = (countryFreq[s.stop_country] || 0) + 1;
     }
   });
-  
+
   if (Object.keys(countryFreq).length === 0) {
-    return '';
+    return "";
   }
-  
-  return Object.keys(countryFreq).reduce((a, b) => 
-    countryFreq[a] > countryFreq[b] ? a : b
+
+  return Object.keys(countryFreq).reduce((a, b) =>
+    countryFreq[a] > countryFreq[b] ? a : b,
   );
 }
 
@@ -52,22 +60,22 @@ function getMostCommonCountry(stations) {
  */
 function longestCommonPrefix(strings) {
   if (!strings || strings.length === 0) {
-    return '';
+    return "";
   }
-  
+
   if (strings.length === 1) {
     return strings[0].trim();
   }
-  
+
   const sorted = strings.slice().sort();
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
-  
+
   let i = 0;
   while (i < first.length && first[i] === last[i]) {
     i++;
   }
-  
+
   return first.substring(0, i).trim();
 }
 
@@ -77,7 +85,7 @@ function longestCommonPrefix(strings) {
 function calculateDistance(station1, station2) {
   const from = point([station1.lon, station1.lat]);
   const to = point([station2.lon, station2.lat]);
-  return distance(from, to, { units: 'kilometers' });
+  return distance(from, to, { units: "kilometers" });
 }
 
 /**
@@ -87,34 +95,36 @@ function calculateDistance(station1, station2) {
  */
 function groupStations(stops, maxDistance = 25) {
   const MIN_GROUP_NAME_LENGTH = 3;
-  
+
   // Convert stops to array with coordinates
-  const stopsArray = Object.entries(stops).map(([stopId, stop]) => {
-    const lat = parseFloat(stop.stop_lat);
-    const lon = parseFloat(stop.stop_lon);
-    
-    // Replace undefined with empty string, then remove empty string fields
-    const cleanStop = {};
-    for (const [key, value] of Object.entries(stop)) {
-      cleanStop[key] = value === undefined ? '' : value;
-    }
-    
-    return removeEmptyFields({
-      ...cleanStop,
-      stop_id: stopId,
-      lat,
-      lon
-    });
-  }).filter(stop => !isNaN(stop.lat) && !isNaN(stop.lon));
-  
+  const stopsArray = Object.entries(stops)
+    .map(([stopId, stop]) => {
+      const lat = parseFloat(stop.stop_lat);
+      const lon = parseFloat(stop.stop_lon);
+
+      // Replace undefined with empty string, then remove empty string fields
+      const cleanStop = {};
+      for (const [key, value] of Object.entries(stop)) {
+        cleanStop[key] = value === undefined ? "" : value;
+      }
+
+      return removeEmptyFields({
+        ...cleanStop,
+        stop_id: stopId,
+        lat,
+        lon,
+      });
+    })
+    .filter((stop) => !isNaN(stop.lat) && !isNaN(stop.lon));
+
   console.log(`Processing ${stopsArray.length} valid stations...`);
-  
+
   const n = stopsArray.length;
-  
+
   // Build neighbor list for each station (only within maxDistance)
-  console.log('Building neighbor lists and merge queue...');
+  console.log("Building neighbor lists and merge queue...");
   const mergeQueue = [];
-  
+
   for (let i = 0; i < n; i++) {
     if (i % 1000 === 0) {
       console.log(`  Processed ${i}/${n} stations...`);
@@ -126,44 +136,46 @@ function groupStations(stops, maxDistance = 25) {
       }
     }
   }
-  
+
   console.log(`Found ${mergeQueue.length} pairs within ${maxDistance}km`);
-  console.log('Sorting merge queue...');
+  console.log("Sorting merge queue...");
   mergeQueue.sort((a, b) => a.dist - b.dist);
-  
+
   // Union-Find for cluster tracking
   const parent = new Array(n).fill(0).map((_, i) => i);
   const clusterStations = new Array(n).fill(null).map((_, i) => [i]);
-  
+
   function find(x) {
     if (parent[x] !== x) {
       parent[x] = find(parent[x]);
     }
     return parent[x];
   }
-  
+
   // Process merges in order of increasing distance
-  console.log('Processing merges...');
+  console.log("Processing merges...");
   let processed = 0;
   let merged = 0;
-  
+
   for (const { i, j } of mergeQueue) {
     processed++;
     if (processed % 10000 === 0) {
-      console.log(`  Processed ${processed}/${mergeQueue.length} merges (${merged} successful)...`);
+      console.log(
+        `  Processed ${processed}/${mergeQueue.length} merges (${merged} successful)...`,
+      );
     }
-    
+
     const rootI = find(i);
     const rootJ = find(j);
-    
+
     if (rootI === rootJ) continue; // Already in same cluster
-    
+
     // Check complete linkage constraint: max distance between any two points
     const stationsI = clusterStations[rootI];
     const stationsJ = clusterStations[rootJ];
-    
+
     let valid = true;
-    
+
     for (const si of stationsI) {
       if (!valid) break;
       for (const sj of stationsJ) {
@@ -174,7 +186,7 @@ function groupStations(stops, maxDistance = 25) {
         }
       }
     }
-    
+
     // Merge if valid
     if (valid) {
       parent[rootJ] = rootI;
@@ -183,11 +195,11 @@ function groupStations(stops, maxDistance = 25) {
       merged++;
     }
   }
-  
+
   console.log(`Completed processing. Merged ${merged} times.`);
-  
+
   // Build final clusters
-  console.log('Building final clusters...');
+  console.log("Building final clusters...");
   const clusterMap = new Map();
   for (let i = 0; i < n; i++) {
     const root = find(i);
@@ -196,13 +208,13 @@ function groupStations(stops, maxDistance = 25) {
     }
     clusterMap.get(root).push(stopsArray[i]);
   }
-  
+
   console.log(`Final number of clusters: ${clusterMap.size}`);
-  
+
   // Convert clusters to groups
-  console.log('Converting clusters to groups...');
+  console.log("Converting clusters to groups...");
   const groups = [];
-  
+
   clusterMap.forEach((stations) => {
     if (stations.length === 1) {
       // Single station cluster
@@ -214,121 +226,150 @@ function groupStations(stops, maxDistance = 25) {
         stations: [station],
         lat: station.lat,
         lon: station.lon,
-        stop_country: station.stop_country
+        stop_country: station.stop_country,
       });
     } else {
       // Multi-station cluster - use longest common prefix as name
-      const stationNames = stations.map(s => s.stop_name);
+      const stationNames = stations.map((s) => s.stop_name);
       let groupName = longestCommonPrefix(stationNames);
-      
+
       // If the prefix is too short or empty, use a more meaningful name
       if (!groupName || groupName.length < MIN_GROUP_NAME_LENGTH) {
         const sortedNames = stationNames.slice().sort();
         groupName = `Cluster (${sortedNames[0]}, ...)`;
       }
-      
+
       // Calculate centroid
-      const avgLat = stations.reduce((sum, s) => sum + s.lat, 0) / stations.length;
-      const avgLon = stations.reduce((sum, s) => sum + s.lon, 0) / stations.length;
-      
+      const avgLat =
+        stations.reduce((sum, s) => sum + s.lat, 0) / stations.length;
+      const avgLon =
+        stations.reduce((sum, s) => sum + s.lon, 0) / stations.length;
+
       groups.push({
         groupName: groupName,
         displayName: `${groupName} (${stations.length} stations)`,
         isGroup: true,
-        stations: stations.sort((a, b) => a.stop_name.localeCompare(b.stop_name)),
+        stations: stations.sort((a, b) =>
+          a.stop_name.localeCompare(b.stop_name),
+        ),
         lat: avgLat,
         lon: avgLon,
-        stop_country: getMostCommonCountry(stations)
+        stop_country: getMostCommonCountry(stations),
       });
     }
   });
-  
+
   return groups;
 }
 
 // Main execution
 try {
-  console.log('Reading stops.json...');
+  console.log("Reading stops.json...");
   let runningInDocker = true;
-  let stopsPath = join(__dirname, '..', 'public', 'data', 'stops.json');
-  let tripStopPath = join(__dirname, '..', 'public', 'data', 'trip_stop.json');
+  let stopsPath = join(__dirname, "..", "public", "data", "stops.json");
+  let tripStopPath = join(__dirname, "..", "public", "data", "trip_stop.json");
   if (!existsSync(stopsPath)) {
     runningInDocker = false;
-    stopsPath = join(__dirname, '..', '..', 'data', 'latest', 'stops.json');
-    tripStopPath = join(__dirname, '..', '..', 'data', 'latest', 'trip_stop.json');
+    stopsPath = join(__dirname, "..", "..", "data", "latest", "stops.json");
+    tripStopPath = join(
+      __dirname,
+      "..",
+      "..",
+      "data",
+      "latest",
+      "trip_stop.json",
+    );
   }
-  
+
   let stopsData;
   try {
-    stopsData = JSON.parse(readFileSync(stopsPath, 'utf-8'));
+    stopsData = JSON.parse(readFileSync(stopsPath, "utf-8"));
   } catch (err) {
     console.error(`Failed to read stops.json from ${stopsPath}:`, err.message);
     process.exit(1);
   }
-  
+
   console.log(`Loaded ${Object.keys(stopsData).length} stops`);
-  
+
   // Filter stops to only those used by night trains
-  console.log('Reading trip_stop.json...');
+  console.log("Reading trip_stop.json...");
   let tripStopData;
   try {
-    tripStopData = JSON.parse(readFileSync(tripStopPath, 'utf-8'));
+    tripStopData = JSON.parse(readFileSync(tripStopPath, "utf-8"));
   } catch (err) {
-    console.error(`Failed to read trip_stop.json from ${tripStopPath}:`, err.message);
+    console.error(
+      `Failed to read trip_stop.json from ${tripStopPath}:`,
+      err.message,
+    );
     process.exit(1);
   }
-  
+
   // Get unique stop IDs that are actually used by night trains
   const usedStopIds = new Set();
-  Object.values(tripStopData).forEach(tripStop => {
+  Object.values(tripStopData).forEach((tripStop) => {
     if (tripStop.stop_id) {
       usedStopIds.add(tripStop.stop_id);
     }
   });
-  
+
   console.log(`Found ${usedStopIds.size} unique stops used by night trains`);
-  
+
   // Filter stops to only include those used by night trains
   const filteredStops = {};
   Object.entries(stopsData).forEach(([stopId, stopData]) => {
     if (usedStopIds.has(stopId)) {
+      if (correctedPositions[stopId]) {
+        stopData.stop_lat = correctedPositions[stopId].lat;
+        stopData.stop_lon = correctedPositions[stopId].lon;
+      }
       filteredStops[stopId] = stopData;
     }
   });
-  
-  console.log(`Filtered from ${Object.keys(stopsData).length} to ${Object.keys(filteredStops).length} stops`);
-  
-  console.log('Generating station groups...');
+
+  console.log(
+    `Filtered from ${Object.keys(stopsData).length} to ${Object.keys(filteredStops).length} stops`,
+  );
+
+  console.log("Generating station groups...");
   const groups = groupStations(filteredStops);
-  
+
   console.log(`Generated ${groups.length} station groups`);
-  
+
   // Save filtered stops
   const filteredStopsOutputPath = runningInDocker
-    ? join(__dirname, '..', 'public', 'data', 'stops-filtered.json')
-    : join(__dirname, '..', '..', 'data', 'latest', 'stops-filtered.json');
-  
+    ? join(__dirname, "..", "public", "data", "stops-filtered.json")
+    : join(__dirname, "..", "..", "data", "latest", "stops-filtered.json");
+
   try {
-    writeFileSync(filteredStopsOutputPath, JSON.stringify(filteredStops, null, 2));
+    writeFileSync(
+      filteredStopsOutputPath,
+      JSON.stringify(filteredStops, null, 2),
+    );
     console.log(`Filtered stops saved to ${filteredStopsOutputPath}`);
   } catch (err) {
-    console.error(`Failed to write stops-filtered.json to ${filteredStopsOutputPath}:`, err.message);
+    console.error(
+      `Failed to write stops-filtered.json to ${filteredStopsOutputPath}:`,
+      err.message,
+    );
     process.exit(1);
   }
-  
+
   const outputPath = runningInDocker
-    ? join(__dirname, '..', 'public', 'data', 'station-groups.json')
-    : join(__dirname, '..', '..', 'data', 'latest', 'station-groups.json');
+    ? join(__dirname, "..", "public", "data", "station-groups.json")
+    : join(__dirname, "..", "..", "data", "latest", "station-groups.json");
   try {
     writeFileSync(outputPath, JSON.stringify(groups, null, 2));
     console.log(`Station groups saved to ${outputPath}`);
   } catch (err) {
-    console.error(`Failed to write station-groups.json to ${outputPath}:`, err.message);
+    console.error(
+      `Failed to write station-groups.json to ${outputPath}:`,
+      err.message,
+    );
     process.exit(1);
   }
-  
-  console.log('Done!');
+
+  console.log("Done!");
 } catch (error) {
-  console.error('Error generating station groups:', error);
+  console.error("Error generating station groups:", error);
   process.exit(1);
 }
