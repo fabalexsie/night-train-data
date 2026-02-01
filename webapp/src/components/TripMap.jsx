@@ -272,17 +272,17 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
     const isTripSelected = selectedTripId === trip.trip_id
     const isHighlighted = isHovered || isTripSelected
 
+    // Base weight for offset calculation (constant for stable positioning)
+    const baseWeight = 5
+    const lineSpacing = baseWeight + 0 // Space between lines (set to 0 for no spacing)
+
     // Determine visual properties based on highlight state
     // Only desaturate if there is a highlighted route AND this route is not highlighted
     const baseColor = getColorForTrip(index)
     const shouldDesaturate = hasHighlightedRoute && !isHighlighted
     const color = shouldDesaturate ? desaturateColor(baseColor, 0.3) : baseColor
-    const weight = isHighlighted ? 5 : 3
+    const weight = isHighlighted ? 1.5 * baseWeight : baseWeight
     const opacity = shouldDesaturate ? 0.5 : (isHighlighted ? 1 : 0.8)
-
-    // Base weight for offset calculation (constant for stable positioning)
-    const baseWeight = 3
-    const lineSpacing = baseWeight + 0 // Space between lines (set to 0 for no spacing)
 
     // Draw each segment separately with per-segment offset calculation
     const segments = []
@@ -294,7 +294,7 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
         continue
       }
 
-      const segmentKey = getSegmentKey(tripStops[i].stop_id, tripStops[i + 1].stop_id)
+      const segmentKey = getSegmentKey(stop1.stop_id, stop2.stop_id)
       const routesOnSegment = segmentToRoutes.get(segmentKey) || [index]
       
       // Find the position of this route among routes on this segment
@@ -305,12 +305,15 @@ function TripMap({ stops, filteredTrips, selectedStationGroups, hoveredTripId, s
       const totalWidth = routesOnSegmentCount * lineSpacing
       const offset = positionInSegment * lineSpacing - (totalWidth / 2) + (lineSpacing / 2)
 
+      const northernStop = stop1.stop_lat > stop2.stop_lat ? stop1 : stop2
+      const southernStop = stop1.stop_lat > stop2.stop_lat ? stop2 : stop1
+
       segments.push(
         <Polyline
           key={`${keyPrefix}${trip.trip_id}-segment-${i}`}
           positions={[
-            [stop1.stop_lat, stop1.stop_lon],
-            [stop2.stop_lat, stop2.stop_lon]
+            [northernStop.stop_lat, northernStop.stop_lon],
+            [southernStop.stop_lat , southernStop.stop_lon]
           ]}
           color={color}
           weight={weight}
