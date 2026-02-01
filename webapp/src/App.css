@@ -237,11 +237,6 @@ body {
     height: 100%;
     position: relative;
   }
-
-  /* Remove padding from tab content when showing map */
-  .tab-content:has(.map-in-tab) {
-    padding: 0;
-  }
 }
 
 /* Hide Map tab on desktop */
