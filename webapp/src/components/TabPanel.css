@@ -66,7 +66,7 @@
   }
 
   .tab-content {
-    padding-top: 1rem;
+    padding: 1rem 1rem 0;
   }
 
   /* Make trip info tab use flexbox layout on mobile */
