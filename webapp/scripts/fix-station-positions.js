@@ -2,6 +2,7 @@
 
 // If called with a parameter it should get the coordinates from nominatim
 // Usage with: npm run fix-station -- "Berlin Hbf"
+// Insert result in `correctedPositions` in `generate-station-groups.js`
 async function main() {
   const args = process.argv.slice(2);
   if (args.length > 0) {

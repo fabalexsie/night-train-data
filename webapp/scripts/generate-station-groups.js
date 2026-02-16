@@ -20,6 +20,8 @@ export const correctedPositions = {
   "Ústí nad Labem hl.n.": { lat: 50.6598369, lon: 14.0439564 },
   Rankweil: { lat: 47.2703808, lon: 9.6426923 },
   Vöcklabruck: { lat: 48.0078587, lon: 13.6460378 },
+  "Siegen Hbf": { lat: 50.8759626, lon: 8.0164616 },
+  Stresa: { lat: 45.8837277, lon: 8.5390268 },
 };
 
 /**
