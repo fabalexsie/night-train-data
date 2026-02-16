@@ -22,6 +22,7 @@ export const correctedPositions = {
   Vöcklabruck: { lat: 48.0078587, lon: 13.6460378 },
   "Siegen Hbf": { lat: 50.8759626, lon: 8.0164616 },
   Stresa: { lat: 45.8837277, lon: 8.5390268 },
+  "Siegburg/Bonn": { lat: 50.7940258, lon: 7.2026578 },
 };
 
 /**
